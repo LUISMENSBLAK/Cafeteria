@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function PruebaGratisPage() {
   return (
-    <div className="min-h-screen bg-[var(--color-crema)] flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-[url('/bg-pattern.svg')] bg-repeat">
+    <div className="min-h-screen bg-[var(--color-crema)] flex flex-col py-12 sm:px-6 lg:px-8 bg-[url('/bg-pattern.svg')] bg-repeat">
       <div className="sm:mx-auto sm:w-full sm:max-w-md mb-8">
         <h1 className="text-center text-4xl font-extrabold text-[var(--color-bronce)] tracking-tight">
           Abaroa POS
