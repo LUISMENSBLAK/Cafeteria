@@ -93,7 +93,7 @@ export function TrialForm() {
     <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl max-w-md w-full border border-[var(--color-crema)]">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-[var(--color-bronce)]">Comienza tu prueba</h2>
-        <p className="text-[var(--color-gris)] mt-2">15 días gratis, todas las funciones.</p>
+        <p className="text-[var(--color-gris)] mt-2">14 días gratis, todas las funciones.</p>
       </div>
 
       {error && (

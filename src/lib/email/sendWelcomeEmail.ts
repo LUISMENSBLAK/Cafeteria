@@ -13,13 +13,13 @@ interface WelcomeEmailProps {
 
 export async function sendWelcomeEmail({ email, nombreNegocio, nombreContacto, password, slug, trialTerminaEn }: WelcomeEmailProps) {
   const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/demo/${slug}/login`;
-  const endDate = trialTerminaEn ? new Date(trialTerminaEn).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : 'en 15 días';
+  const endDate = trialTerminaEn ? new Date(trialTerminaEn).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : 'en 14 días';
 
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
       <h1 style="color: #7A5A32; text-align: center;">¡Bienvenido a tu POS!</h1>
       <p>Hola <strong>${nombreContacto}</strong>,</p>
-      <p>Gracias por registrar a <strong>${nombreNegocio}</strong>. Tu periodo de prueba gratuita de 15 días ha comenzado y terminará el <strong>${endDate}</strong>.</p>
+      <p>Gracias por registrar a <strong>${nombreNegocio}</strong>. Tu periodo de prueba gratuita de 14 días ha comenzado y terminará el <strong>${endDate}</strong>.</p>
       
       <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #eee;">
         <h3 style="margin-top: 0; color: #7A5A32;">Tus datos de acceso:</h3>

@@ -266,19 +266,36 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
     if (eRes.data) setEmployees(eRes.data)
     if (mRes.data) setMovements(mRes.data)
     if (sRes.data) {
-      setSettings(sRes.data)
-      setPrinterMode(sRes.data.impresora_modo || 'red')
+      // Detectar si este empleado pertenece a un tenant para fusionar sus datos de marca
+      let mergedSettings = { ...sRes.data }
+      const { data: currentEmpRow } = await supabase.from('employees').select('tenant_id').eq('id', user?.id ?? '').single()
+      if (currentEmpRow?.tenant_id) {
+        const { data: tenantRow } = await supabase.from('tenants').select('nombre_negocio, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url').eq('id', currentEmpRow.tenant_id).single()
+        if (tenantRow) {
+          mergedSettings = {
+            ...mergedSettings,
+            negocio_nombre: tenantRow.nombre_negocio ?? mergedSettings.negocio_nombre,
+            theme_color_primario: tenantRow.theme_color_primario ?? mergedSettings.theme_color_primario,
+            theme_color_secundario: tenantRow.theme_color_secundario ?? mergedSettings.theme_color_secundario,
+            theme_color_terciario: tenantRow.theme_color_terciario ?? mergedSettings.theme_color_terciario,
+            theme_color_texto: tenantRow.theme_color_texto ?? mergedSettings.theme_color_texto,
+            logo_marca_url: tenantRow.logo_marca_url ?? mergedSettings.logo_marca_url,
+          }
+        }
+      }
+      setSettings(mergedSettings)
+      setPrinterMode(mergedSettings.impresora_modo || 'red')
       setTicketPreview({
-        tamano: sRes.data.ticket_tamano_fuente || 'normal',
-        mensaje: sRes.data.ticket_mensaje_despedida || '¡Gracias por su compra! Vuelva pronto.',
-        atendido: sRes.data.ticket_mostrar_atendido_por ?? true,
-        logo: sRes.data.ticket_mostrar_logo ?? true,
-        negocioNombre: sRes.data.negocio_nombre ?? 'Abaroa Caf\u00e9ter\u00eda',
-        negocioDireccion: sRes.data.negocio_direccion ?? '',
-        negocioTelefono: sRes.data.negocio_telefono ?? '',
-        negocioRfc: sRes.data.negocio_rfc ?? '',
-        lineaExtra: sRes.data.ticket_linea_extra ?? '',
-        logoUrl: sRes.data.ticket_logo_url ?? ''
+        tamano: mergedSettings.ticket_tamano_fuente || 'normal',
+        mensaje: mergedSettings.ticket_mensaje_despedida || '¡Gracias por su compra! Vuelva pronto.',
+        atendido: mergedSettings.ticket_mostrar_atendido_por ?? true,
+        logo: mergedSettings.ticket_mostrar_logo ?? true,
+        negocioNombre: mergedSettings.negocio_nombre ?? 'Mi Negocio',
+        negocioDireccion: mergedSettings.negocio_direccion ?? '',
+        negocioTelefono: mergedSettings.negocio_telefono ?? '',
+        negocioRfc: mergedSettings.negocio_rfc ?? '',
+        lineaExtra: mergedSettings.ticket_linea_extra ?? '',
+        logoUrl: mergedSettings.ticket_logo_url ?? ''
       })
     }
     if (cRes.data) setCategories(cRes.data)
@@ -1112,7 +1129,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
       ticket_mensaje_despedida: formData.get('ticket_mensaje_despedida') || '¡Gracias por su compra! Vuelva pronto.',
       ticket_mostrar_atendido_por: formData.get('ticket_mostrar_atendido_por') === 'on',
       ticket_mostrar_logo: formData.get('ticket_mostrar_logo') === 'on',
-      negocio_nombre: formData.get('negocio_nombre') ?? 'Abaroa Caf\u00e9ter\u00eda',
+      negocio_nombre: formData.get('negocio_nombre') || settings?.negocio_nombre || 'Mi Negocio',
       negocio_direccion: formData.get('negocio_direccion') ?? null,
       negocio_telefono: formData.get('negocio_telefono') ?? null,
       negocio_rfc: formData.get('negocio_rfc') ?? null,

@@ -149,27 +149,32 @@ export async function createTrialTenant(formData: FormData) {
       const idPostres = catsData.find(c => c.nombre === 'Postres')?.id;
 
       const seedProductos = [
-        { nombre: 'Café Americano', precio: 35, category_id: idCalientes, orden: 1, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
-        { nombre: 'Capuccino', precio: 55, category_id: idCalientes, orden: 2, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
-        { nombre: 'Latte', precio: 60, category_id: idCalientes, orden: 3, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
-        { nombre: 'Frappé Clásico', precio: 75, category_id: idFrias, orden: 1, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
-        { nombre: 'Limonada Mineral', precio: 45, category_id: idFrias, orden: 2, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
-        { nombre: 'Sandwich de Pavo', precio: 85, category_id: idComida, orden: 1, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
-        { nombre: 'Chilaquiles Sencillos', precio: 95, category_id: idComida, orden: 2, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
-        { nombre: 'Rebanada Pastel de Chocolate', precio: 65, category_id: idPostres, orden: 1, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
-        { nombre: 'Cheesecake', precio: 70, category_id: idPostres, orden: 2, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true }
+        { nombre: 'Café Americano', precio: 35, categoria_id: idCalientes, tenant_id: createdTenantId },
+        { nombre: 'Capuccino', precio: 55, categoria_id: idCalientes, tenant_id: createdTenantId },
+        { nombre: 'Latte', precio: 60, categoria_id: idCalientes, tenant_id: createdTenantId },
+        { nombre: 'Frappé Clásico', precio: 75, categoria_id: idFrias, tenant_id: createdTenantId },
+        { nombre: 'Limonada Mineral', precio: 45, categoria_id: idFrias, tenant_id: createdTenantId },
+        { nombre: 'Sandwich de Pavo', precio: 85, categoria_id: idComida, tenant_id: createdTenantId },
+        { nombre: 'Chilaquiles Sencillos', precio: 95, categoria_id: idComida, tenant_id: createdTenantId },
+        { nombre: 'Rebanada Pastel de Chocolate', precio: 65, categoria_id: idPostres, tenant_id: createdTenantId },
+        { nombre: 'Cheesecake', precio: 70, categoria_id: idPostres, tenant_id: createdTenantId }
       ];
-      await supabaseAdmin.from('products').insert(seedProductos);
+      const { error: prodError } = await supabaseAdmin.from('products').insert(seedProductos);
+      if (prodError) console.error('Error sembrando productos:', prodError);
+    } else if (catsError) {
+      console.error('Error sembrando categorías:', catsError);
     }
 
     // Mesas
     const seedMesas = [
-      { nombre: 'Mesa 1', estatus: 'libre', tenant_id: createdTenantId },
-      { nombre: 'Mesa 2', estatus: 'libre', tenant_id: createdTenantId },
-      { nombre: 'Mesa 3', estatus: 'libre', tenant_id: createdTenantId },
-      { nombre: 'Barra', estatus: 'libre', tenant_id: createdTenantId }
+      { numero: '1', estado: 'libre', tenant_id: createdTenantId },
+      { numero: '2', estado: 'libre', tenant_id: createdTenantId },
+      { numero: '3', estado: 'libre', tenant_id: createdTenantId },
+      { numero: 'Barra', estado: 'libre', tenant_id: createdTenantId }
     ];
-    await supabaseAdmin.from('tables').insert(seedMesas);
+    const { error: mesasError } = await supabaseAdmin.from('tables').insert(seedMesas);
+    if (mesasError) console.error('Error sembrando mesas:', mesasError);
+
 
     // Si llegamos hasta aquí, la DB está lista
     // 5. Enviar el correo de bienvenida (Try/Catch aislado)
