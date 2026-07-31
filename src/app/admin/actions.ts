@@ -5,19 +5,32 @@ import { revalidatePath } from 'next/cache'
 
 // Note: To create an employee with login, we must create an auth.users record.
 // This requires the Service Role Key.
-export async function createEmployee(nombre: string, pin: string, rol: string) {
+export async function createEmployee(nombre: string, pin: string, rol: string, currentUserId?: string) {
   const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
   const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  let tenantId = null;
+  if (currentUserId) {
+    const { data: creator } = await supabaseAdmin.from('employees').select('tenant_id').eq('id', currentUserId).single();
+    if (creator?.tenant_id) {
+      tenantId = creator.tenant_id;
+    }
+  }
+
   // Validate if PIN already exists in employees to prevent collisions
-  const { data: existing } = await supabaseAdmin.from('employees').select('id').eq('pin', pin).single()
+  // We should also scope this validation to the tenant_id if tenantId exists
+  let existingQuery = supabaseAdmin.from('employees').select('id').eq('pin', pin);
+  if (tenantId) {
+    existingQuery = existingQuery.eq('tenant_id', tenantId);
+  }
+  const { data: existing } = await existingQuery.single();
+  
   if (existing) return { error: 'El PIN ya está en uso' }
 
-  // 1. Create User in Supabase Auth (We don't know the ID yet, so we let Supabase generate it)
-  // Email will be a dummy since it's required. We'll use a temporary one, then update it once we have the ID.
+  // 1. Create User in Supabase Auth
   const tempEmail = `temp_${Date.now()}@abaroa.local`
   const internalPassword = `${pin}-abaroa-pos`
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -31,18 +44,22 @@ export async function createEmployee(nombre: string, pin: string, rol: string) {
 
   const userId = authData.user.id
 
-  // Update email to the correct format using the ID
   const finalEmail = `emp_${userId}@abaroa.local`
   await supabaseAdmin.auth.admin.updateUserById(userId, { email: finalEmail })
 
   // 2. Insert into employees table
-  const { error: empError } = await supabaseAdmin.from('employees').insert({
+  const insertData: any = {
     id: userId,
     nombre,
     pin,
     rol,
     activo: true
-  })
+  };
+  if (tenantId) {
+    insertData.tenant_id = tenantId;
+  }
+
+  const { error: empError } = await supabaseAdmin.from('employees').insert(insertData)
 
   if (empError) return { error: empError.message }
 
@@ -57,13 +74,22 @@ export async function updateEmployee(id: string, nombre: string, pin: string, ro
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  // Obtener el tenant_id actual del empleado
+  const { data: targetEmp } = await supabaseAdmin.from('employees').select('tenant_id').eq('id', id).single();
+  const tenantId = targetEmp?.tenant_id;
+
   // Validar que el PIN no esté en uso por otro empleado (excluyendo al que se está editando)
-  const { data: existing } = await supabaseAdmin
+  let existingQuery = supabaseAdmin
     .from('employees')
     .select('id')
     .eq('pin', pin)
-    .neq('id', id)
-    .single()
+    .neq('id', id);
+
+  if (tenantId) {
+    existingQuery = existingQuery.eq('tenant_id', tenantId);
+  }
+
+  const { data: existing } = await existingQuery.single();
 
   if (existing) return { error: 'El PIN ya está en uso por otro empleado' }
 

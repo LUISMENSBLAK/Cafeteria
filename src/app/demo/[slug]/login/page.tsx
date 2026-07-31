@@ -20,6 +20,8 @@ export default async function DemoLoginPage({ params }: Props) {
   const headersList = await headers()
   const rawName = headersList.get('x-business-name')
   const businessName = rawName ? decodeURIComponent(rawName) : slug
+  const rawLogo = headersList.get('x-logo-url')
+  const logoUrl = rawLogo ? decodeURIComponent(rawLogo) : undefined
 
-  return <DemoLoginForm slug={slug} businessName={businessName} />
+  return <DemoLoginForm slug={slug} businessName={businessName} logoUrl={logoUrl} />
 }

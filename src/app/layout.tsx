@@ -1,4 +1,4 @@
-import type { Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Montserrat } from "next/font/google";
 import { headers } from "next/headers";
 import { TrialBanner } from "@/components/TrialBanner";
@@ -15,10 +15,10 @@ const montserrat = Montserrat({
 });
 
 // generateMetadata es async para poder leer los headers del request (inyectados por el middleware)
-export async function generateMetadata() {
+export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers();
   const rawName = headersList.get('x-business-name');
-  const businessName = rawName ? decodeURIComponent(rawName) : 'Abaroa Bakery POS';
+  const businessName = rawName ? decodeURIComponent(rawName) : 'Mi Negocio POS';
   return {
     title: `${businessName} — POS`,
     description: `Sistema de Punto de Venta para ${businessName}`,

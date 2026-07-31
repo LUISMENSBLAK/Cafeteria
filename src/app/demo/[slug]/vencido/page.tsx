@@ -19,19 +19,23 @@ export default async function VencidoPage({ params }: Props) {
   const headersList = await headers()
   const rawName = headersList.get('x-business-name')
   const businessName = rawName ? decodeURIComponent(rawName) : slug
+  const rawLogo = headersList.get('x-logo-url')
+  const logoUrl = rawLogo ? decodeURIComponent(rawLogo) : undefined
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[var(--color-crema)]">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden">
-        {/* Header */}
-        <div className="bg-[var(--color-bronce)] text-[var(--color-crema)] text-center py-8 px-6">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+      <div className="max-w-md w-full bg-white rounded-xl shadow-xl overflow-hidden p-8 text-center border border-gray-100">
+        {logoUrl ? (
+          <img src={logoUrl} alt={businessName} className="h-16 mx-auto mb-6 object-contain" />
+        ) : (
           <div className="text-5xl mb-3">🔒</div>
-          <h1 className="text-2xl font-bold mb-1">{businessName}</h1>
-          <p className="text-sm opacity-80">Sistema Punto de Venta</p>
-        </div>
+        )}
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">{businessName}</h1>
+          <p className="text-sm opacity-80 mb-6">Sistema Punto de Venta</p>
+        
 
         {/* Body */}
-        <div className="p-8 text-center">
+        <div className="text-center">
           <h2 className="text-xl font-bold text-[var(--color-negro)] mb-3">
             Tu periodo de prueba ha finalizado
           </h2>
@@ -56,13 +60,22 @@ export default async function VencidoPage({ params }: Props) {
             ))}
           </ul>
 
-          {/* CTA — Fase 4: se enlazará a /api/stripe/checkout */}
-          <a
-            href={`/api/stripe/checkout?slug=${slug}`}
-            className="block w-full bg-[var(--color-bronce)] text-[var(--color-crema)] text-center font-bold uppercase tracking-widest py-4 rounded-xl hover:bg-[var(--color-negro)] transition-colors text-sm"
-          >
-            Activar Licencia Completa
-          </a>
+          {/* CTA — Opciones de Pago Stripe */}
+          <div className="space-y-4">
+            <a
+              href={`/api/stripe/checkout?slug=${slug}&plan=mensual`}
+              className="block w-full bg-[var(--color-bronce)] text-[var(--color-crema)] text-center font-bold uppercase tracking-widest py-4 rounded-xl hover:bg-[var(--color-negro)] transition-colors text-sm shadow-md"
+            >
+              Mensualidad — $500 MXN/mes
+            </a>
+            
+            <a
+              href={`/api/stripe/checkout?slug=${slug}&plan=unico`}
+              className="block w-full bg-white text-[var(--color-bronce)] border-2 border-[var(--color-bronce)] text-center font-bold uppercase tracking-widest py-4 rounded-xl hover:bg-[var(--color-bronce)] hover:text-white transition-colors text-sm shadow-sm"
+            >
+              Pago único — $5,000 MXN (sin mensualidades)
+            </a>
+          </div>
 
           <p className="text-xs text-[var(--color-gris)] mt-4">
             ¿Preguntas? Escríbenos a{' '}

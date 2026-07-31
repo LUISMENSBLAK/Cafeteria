@@ -17,7 +17,7 @@ export async function sendWelcomeEmail({ email, nombreNegocio, nombreContacto, p
 
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h1 style="color: #7A5A32; text-align: center;">¡Bienvenido a Abaroa Bakery POS!</h1>
+      <h1 style="color: #7A5A32; text-align: center;">¡Bienvenido a tu POS!</h1>
       <p>Hola <strong>${nombreContacto}</strong>,</p>
       <p>Gracias por registrar a <strong>${nombreNegocio}</strong>. Tu periodo de prueba gratuita de 15 días ha comenzado y terminará el <strong>${endDate}</strong>.</p>
       
@@ -49,7 +49,7 @@ export async function sendWelcomeEmail({ email, nombreNegocio, nombreContacto, p
   // Lo ideal es verificar un dominio propio en Resend para evitar caer en spam.
   // Por ahora, si no hay dominio, usamos onboarding@resend.dev
   await resend.emails.send({
-    from: 'Abaroa POS <onboarding@resend.dev>',
+    from: 'Tu POS <onboarding@resend.dev>',
     to: [email],
     subject: `¡Bienvenido a tu prueba gratuita, ${nombreNegocio}!`,
     html: htmlContent,

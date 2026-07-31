@@ -129,6 +129,48 @@ export async function createTrialTenant(formData: FormData) {
       throw new Error(lastEmpError?.message || "No se pudo asignar un PIN único para el administrador.");
     }
 
+    // --- 4.5. SEMILLA INICIAL ---
+    // Categorías
+    const seedCategorias = [
+      { nombre: 'Bebidas Calientes', orden: 1, tenant_id: createdTenantId },
+      { nombre: 'Bebidas Frías', orden: 2, tenant_id: createdTenantId },
+      { nombre: 'Comida', orden: 3, tenant_id: createdTenantId },
+      { nombre: 'Postres', orden: 4, tenant_id: createdTenantId }
+    ];
+    const { data: catsData, error: catsError } = await supabaseAdmin
+      .from('categories')
+      .insert(seedCategorias)
+      .select('id, nombre');
+
+    if (!catsError && catsData) {
+      const idCalientes = catsData.find(c => c.nombre === 'Bebidas Calientes')?.id;
+      const idFrias = catsData.find(c => c.nombre === 'Bebidas Frías')?.id;
+      const idComida = catsData.find(c => c.nombre === 'Comida')?.id;
+      const idPostres = catsData.find(c => c.nombre === 'Postres')?.id;
+
+      const seedProductos = [
+        { nombre: 'Café Americano', precio: 35, category_id: idCalientes, orden: 1, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
+        { nombre: 'Capuccino', precio: 55, category_id: idCalientes, orden: 2, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
+        { nombre: 'Latte', precio: 60, category_id: idCalientes, orden: 3, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
+        { nombre: 'Frappé Clásico', precio: 75, category_id: idFrias, orden: 1, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
+        { nombre: 'Limonada Mineral', precio: 45, category_id: idFrias, orden: 2, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
+        { nombre: 'Sandwich de Pavo', precio: 85, category_id: idComida, orden: 1, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
+        { nombre: 'Chilaquiles Sencillos', precio: 95, category_id: idComida, orden: 2, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
+        { nombre: 'Rebanada Pastel de Chocolate', precio: 65, category_id: idPostres, orden: 1, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true },
+        { nombre: 'Cheesecake', precio: 70, category_id: idPostres, orden: 2, tenant_id: createdTenantId, control_inventario: false, track_inventory: false, disponible: true }
+      ];
+      await supabaseAdmin.from('products').insert(seedProductos);
+    }
+
+    // Mesas
+    const seedMesas = [
+      { nombre: 'Mesa 1', estatus: 'libre', tenant_id: createdTenantId },
+      { nombre: 'Mesa 2', estatus: 'libre', tenant_id: createdTenantId },
+      { nombre: 'Mesa 3', estatus: 'libre', tenant_id: createdTenantId },
+      { nombre: 'Barra', estatus: 'libre', tenant_id: createdTenantId }
+    ];
+    await supabaseAdmin.from('tables').insert(seedMesas);
+
     // Si llegamos hasta aquí, la DB está lista
     // 5. Enviar el correo de bienvenida (Try/Catch aislado)
     try {

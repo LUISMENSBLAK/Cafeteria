@@ -46,6 +46,37 @@ export async function updateSession(request: NextRequest) {
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
+
+    const match = pathname.match(/^\/demo\/([^/]+)\/(login|vencido)/)
+    if (match) {
+      const slug = match[1]
+      const supabaseAdmin = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { cookies: { getAll: () => [], setAll: () => {} } }
+      )
+      
+      const { data: tenant } = await supabaseAdmin
+        .from('tenants')
+        .select('nombre_negocio, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url')
+        .eq('slug', slug)
+        .single()
+        
+      if (tenant) {
+        const requestHeaders = new Headers(request.headers)
+        requestHeaders.set('x-business-name', encodeURIComponent(tenant.nombre_negocio))
+        requestHeaders.set('x-theme-primario', tenant.theme_color_primario ?? '#F5E6D3')
+        requestHeaders.set('x-theme-secundario', tenant.theme_color_secundario ?? '#7A5A32')
+        requestHeaders.set('x-theme-terciario', tenant.theme_color_terciario ?? '#8C8880')
+        requestHeaders.set('x-theme-texto', tenant.theme_color_texto ?? '#111111')
+        requestHeaders.set('x-logo-url', encodeURIComponent(tenant.logo_marca_url ?? ''))
+        
+        supabaseResponse = NextResponse.next({
+          request: { headers: requestHeaders },
+        })
+      }
+    }
+
     return supabaseResponse
   }
 

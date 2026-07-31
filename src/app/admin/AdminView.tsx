@@ -942,7 +942,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
     if (editingEmployee) {
       res = await updateEmployee(editingEmployee.id, nombre, pin, rol, activo)
     } else {
-      res = await createEmployee(nombre, pin, rol)
+      res = await createEmployee(nombre, pin, rol, currentUser || undefined)
     }
 
     if (res?.error) alert(res.error)
@@ -1120,12 +1120,42 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
       meta_diaria: parseFloat(formData.get('meta_diaria') as string) || 0,
       meta_semanal: parseFloat(formData.get('meta_semanal') as string) || 0,
       meta_mensual: parseFloat(formData.get('meta_mensual') as string) || 0,
+      theme_color_primario: formData.get('theme_color_primario'),
+      theme_color_secundario: formData.get('theme_color_secundario'),
+      theme_color_terciario: formData.get('theme_color_terciario'),
+      theme_color_texto: formData.get('theme_color_texto'),
+      logo_marca_url: settings?.logo_marca_url ?? null
     }
-    const { error } = await supabase.from('settings').update(sData).eq('id', 1)
-    if (error) {
-      alert('Error guardando configuraci\u00f3n: ' + error.message)
+
+    let saveError;
+    if (currentUser) {
+      const { data: emp } = await supabase.from('employees').select('tenant_id').eq('id', currentUser).single()
+      if (emp?.tenant_id) {
+        // Tenant
+        const tenantData = {
+          nombre_negocio: sData.negocio_nombre,
+          theme_color_primario: sData.theme_color_primario,
+          theme_color_secundario: sData.theme_color_secundario,
+          theme_color_terciario: sData.theme_color_terciario,
+          theme_color_texto: sData.theme_color_texto,
+          logo_marca_url: sData.logo_marca_url
+        }
+        const { error: tError } = await supabase.from('tenants').update(tenantData).eq('id', emp.tenant_id)
+        saveError = tError
+      } else {
+        // Root settings
+        const { error: sError } = await supabase.from('settings').update(sData).eq('id', 1)
+        saveError = sError
+      }
     } else {
-      alert('Configuraci\u00f3n guardada exitosamente')
+      const { error: sError } = await supabase.from('settings').update(sData).eq('id', 1)
+      saveError = sError
+    }
+
+    if (saveError) {
+      alert('Error guardando configuración: ' + saveError.message)
+    } else {
+      alert('Configuración guardada exitosamente')
       loadData()
     }
   }
