@@ -155,6 +155,36 @@ export function TrialForm() {
             disabled={loading}
           />
         </div>
+
+        {/* Logo opcional */}
+        <div>
+          <label className="block text-sm font-semibold text-[var(--color-gris)] mb-2">
+            Logo de tu negocio (opcional)
+          </label>
+          <input
+            type="file"
+            name="logo"
+            accept="image/png,image/jpeg,image/webp"
+            className="w-full text-sm border border-[var(--color-borde)] rounded-lg px-3 py-2"
+          />
+          <p className="text-xs text-[var(--color-gris)] mt-1">Puedes agregarlo después si no lo tienes a la mano.</p>
+        </div>
+
+        {/* Colores opcionales */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-[var(--color-gris)] mb-2">
+              Color de fondo
+            </label>
+            <input type="color" name="theme_color_primario" defaultValue="#F5E6D3" className="w-full h-11 rounded-lg border border-[var(--color-borde)] cursor-pointer" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-[var(--color-gris)] mb-2">
+              Color de acento
+            </label>
+            <input type="color" name="theme_color_secundario" defaultValue="#7A5A32" className="w-full h-11 rounded-lg border border-[var(--color-borde)] cursor-pointer" />
+          </div>
+        </div>
       </div>
 
       <Button 

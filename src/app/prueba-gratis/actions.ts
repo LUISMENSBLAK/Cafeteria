@@ -9,6 +9,9 @@ export async function createTrialTenant(formData: FormData) {
   const nombreContacto = formData.get('nombreContacto') as string
   const emailContacto = formData.get('emailContacto') as string
   const telefonoContacto = formData.get('telefonoContacto') as string
+  const logoFile = formData.get('logo') as File | null
+  const themePrimario = (formData.get('theme_color_primario') as string) || '#F5E6D3'
+  const themeSecundario = (formData.get('theme_color_secundario') as string) || '#7A5A32'
 
   if (!nombreNegocio || !nombreContacto || !emailContacto) {
     return { success: false, error: "Por favor llena todos los campos obligatorios." }
@@ -47,7 +50,9 @@ export async function createTrialTenant(formData: FormData) {
           nombre_contacto: nombreContacto,
           email_contacto: emailContacto,
           telefono_contacto: telefonoContacto || null,
-          estado: 'trial'
+          estado: 'trial',
+          theme_color_primario: themePrimario,
+          theme_color_secundario: themeSecundario
         })
         .select()
         .single();
@@ -129,7 +134,27 @@ export async function createTrialTenant(formData: FormData) {
       throw new Error(lastEmpError?.message || "No se pudo asignar un PIN único para el administrador.");
     }
 
-    // --- 4.5. SEMILLA INICIAL ---
+    // --- 4.5. SUBIR LOGO SI SE ADJUNTÓ ---
+    if (logoFile && logoFile.size > 0) {
+      try {
+        const ext = logoFile.name.split('.').pop() || 'png'
+        const fileName = `tenant-logos/${createdTenantId}.${ext}`
+        const { error: logoUploadError } = await supabaseAdmin.storage
+          .from('productos')
+          .upload(fileName, logoFile, { upsert: true })
+
+        if (!logoUploadError) {
+          const { data: { publicUrl } } = supabaseAdmin.storage.from('productos').getPublicUrl(fileName)
+          await supabaseAdmin.from('tenants').update({ logo_marca_url: publicUrl }).eq('id', createdTenantId)
+        } else {
+          console.error('Error subiendo logo en registro:', logoUploadError)
+        }
+      } catch (logoErr) {
+        console.error('Error inesperado subiendo logo:', logoErr)
+      }
+    }
+
+    // --- 4.6. SEMILLA INICIAL ---
     // Categorías
     const seedCategorias = [
       { nombre: 'Bebidas Calientes', orden: 1, tenant_id: createdTenantId },
