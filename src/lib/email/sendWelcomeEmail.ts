@@ -79,7 +79,7 @@ export async function sendWelcomeEmail({ email, nombreNegocio, nombreContacto, p
   // Lo ideal es verificar un dominio propio en Resend para evitar caer en spam.
   // Por ahora, si no hay dominio, usamos onboarding@resend.dev
   await resend.emails.send({
-    from: 'Tu POS <onboarding@resend.dev>',
+    from: 'Innova Network <bienvenida@innovanetwork.es>',
     to: [email],
     subject: `¡Bienvenido a tu prueba gratuita, ${nombreNegocio}!`,
     html: htmlContent,
