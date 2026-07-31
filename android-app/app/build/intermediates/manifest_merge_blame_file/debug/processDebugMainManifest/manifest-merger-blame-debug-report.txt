@@ -1,0 +1,180 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.innovanetwork.abaroapos.debug"
+4    android:versionCode="1"
+5    android:versionName="1.0.0-debug" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="35" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:4:5-67
+11-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:4:22-64
+12    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+12-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:5:5-79
+12-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:5:22-76
+13
+14    <uses-feature
+14-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:6:5-86
+15        android:name="android.hardware.usb.host"
+15-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:6:19-59
+16        android:required="true" />
+16-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:6:60-83
+17
+18    <uses-permission
+18-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:8:5-95
+19        android:name="android.permission.BLUETOOTH"
+19-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:8:22-65
+20        android:maxSdkVersion="30" />
+20-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:8:66-92
+21    <uses-permission
+21-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:9:5-101
+22        android:name="android.permission.BLUETOOTH_ADMIN"
+22-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:9:22-71
+23        android:maxSdkVersion="30" />
+23-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:9:72-98
+24    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+24-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:10:5-76
+24-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:10:22-73
+25    <uses-permission
+25-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:11:5-120
+26        android:name="android.permission.BLUETOOTH_SCAN"
+26-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:11:22-70
+27        android:usesPermissionFlags="neverForLocation" />
+27-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:11:71-117
+28
+29    <uses-feature
+29-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:12:5-88
+30        android:name="android.hardware.bluetooth"
+30-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:12:19-60
+31        android:required="false" />
+31-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:12:61-85
+32
+33    <permission
+33-->[androidx.core:core:1.16.0] /Users/15indicado/.gradle/caches/8.9/transforms/a0e781ca5f33766164d32763af8a618c/transformed/core-1.16.0/AndroidManifest.xml:22:5-24:47
+34        android:name="com.innovanetwork.abaroapos.debug.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+34-->[androidx.core:core:1.16.0] /Users/15indicado/.gradle/caches/8.9/transforms/a0e781ca5f33766164d32763af8a618c/transformed/core-1.16.0/AndroidManifest.xml:23:9-81
+35        android:protectionLevel="signature" />
+35-->[androidx.core:core:1.16.0] /Users/15indicado/.gradle/caches/8.9/transforms/a0e781ca5f33766164d32763af8a618c/transformed/core-1.16.0/AndroidManifest.xml:24:9-44
+36
+37    <uses-permission android:name="com.innovanetwork.abaroapos.debug.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+37-->[androidx.core:core:1.16.0] /Users/15indicado/.gradle/caches/8.9/transforms/a0e781ca5f33766164d32763af8a618c/transformed/core-1.16.0/AndroidManifest.xml:26:5-97
+37-->[androidx.core:core:1.16.0] /Users/15indicado/.gradle/caches/8.9/transforms/a0e781ca5f33766164d32763af8a618c/transformed/core-1.16.0/AndroidManifest.xml:26:22-94
+38
+39    <application
+40        android:allowBackup="false"
+40-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:15:9-36
+41        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+41-->[androidx.core:core:1.16.0] /Users/15indicado/.gradle/caches/8.9/transforms/a0e781ca5f33766164d32763af8a618c/transformed/core-1.16.0/AndroidManifest.xml:28:18-86
+42        android:debuggable="true"
+43        android:extractNativeLibs="false"
+44        android:fullBackupContent="false"
+44-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:16:9-42
+45        android:icon="@mipmap/ic_launcher"
+45-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:17:9-43
+46        android:label="@string/app_name"
+46-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:18:9-41
+47        android:roundIcon="@mipmap/ic_launcher_round"
+47-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:19:9-54
+48        android:supportsRtl="true"
+48-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:20:9-35
+49        android:theme="@style/Theme.Abaroa"
+49-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:21:9-44
+50        android:usesCleartextTraffic="true" >
+50-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:22:9-56
+51        <activity
+51-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:24:9-42:20
+52            android:name="com.innovanetwork.abaroapos.MainActivity"
+52-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:25:13-41
+53            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+53-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:26:13-122
+54            android:exported="true"
+54-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:27:13-36
+55            android:launchMode="singleTop"
+55-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:28:13-43
+56            android:screenOrientation="unspecified"
+56-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:29:13-52
+57            android:windowSoftInputMode="adjustResize" >
+57-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:30:13-55
+58            <intent-filter>
+58-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:31:13-34:29
+59                <action android:name="android.intent.action.MAIN" />
+59-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:32:17-69
+59-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:32:25-66
+60
+61                <category android:name="android.intent.category.LAUNCHER" />
+61-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:33:17-77
+61-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:33:27-74
+62            </intent-filter>
+63            <intent-filter>
+63-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:36:13-38:29
+64                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+64-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:37:17-90
+64-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:37:25-87
+65            </intent-filter>
+66
+67            <meta-data
+67-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:39:13-41:57
+68                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+68-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:40:17-79
+69                android:resource="@xml/device_filter" />
+69-->/Users/15indicado/AbaroaVenta/android-app/app/src/main/AndroidManifest.xml:41:17-54
+70        </activity>
+71
+72        <provider
+72-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:24:9-32:20
+73            android:name="androidx.startup.InitializationProvider"
+73-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:25:13-67
+74            android:authorities="com.innovanetwork.abaroapos.debug.androidx-startup"
+74-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:26:13-68
+75            android:exported="false" >
+75-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:27:13-37
+76            <meta-data
+76-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+77                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+77-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+78                android:value="androidx.startup" />
+78-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+79        </provider>
+80
+81        <receiver
+81-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+82            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+82-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+83            android:directBootAware="false"
+83-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+84            android:enabled="true"
+84-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+85            android:exported="true"
+85-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+86            android:permission="android.permission.DUMP" >
+86-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+87            <intent-filter>
+87-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+88                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+88-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+88-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+89            </intent-filter>
+90            <intent-filter>
+90-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+91                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+91-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+91-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+92            </intent-filter>
+93            <intent-filter>
+93-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+94                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+94-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+94-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+95            </intent-filter>
+96            <intent-filter>
+96-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+97                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+97-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+97-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/15indicado/.gradle/caches/8.9/transforms/19a04c9820552e8deab86a79cc2427e8/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
+98            </intent-filter>
+99        </receiver>
+100    </application>
+101
+102</manifest>
