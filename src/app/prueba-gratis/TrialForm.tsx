@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { createTrialTenant } from './actions'
+import { TEMAS_DISPONIBLES } from '@/lib/themes'
+import type { TemaKey } from '@/lib/themes'
 
 export function TrialForm() {
   const [loading, setLoading] = useState(false)
@@ -14,6 +16,8 @@ export function TrialForm() {
     password: string;
   } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [temaElegido, setTemaElegido] = useState<TemaKey>('cafe')
+  const [logoError, setLogoError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -166,24 +170,49 @@ export function TrialForm() {
             name="logo"
             accept="image/png,image/jpeg,image/webp"
             className="w-full text-sm border border-[var(--color-borde)] rounded-lg px-3 py-2"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file && file.size > 5 * 1024 * 1024) {
+                setLogoError('La imagen no puede pesar más de 5MB.')
+                e.target.value = ''
+              } else {
+                setLogoError(null)
+              }
+            }}
           />
+          {logoError && <p className="text-red-600 text-xs mt-1">{logoError}</p>}
           <p className="text-xs text-[var(--color-gris)] mt-1">Puedes agregarlo después si no lo tienes a la mano.</p>
         </div>
 
-        {/* Colores opcionales */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-[var(--color-gris)] mb-2">
-              Color de fondo
-            </label>
-            <input type="color" name="theme_color_primario" defaultValue="#F5E6D3" className="w-full h-11 rounded-lg border border-[var(--color-borde)] cursor-pointer" />
+        {/* Tema de colores */}
+        <div>
+          <label className="block text-sm font-semibold text-[var(--color-gris)] mb-2">
+            Elige el estilo de tu POS
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            {(Object.keys(TEMAS_DISPONIBLES) as Array<TemaKey>).map(key => {
+              const tema = TEMAS_DISPONIBLES[key]
+              const seleccionado = temaElegido === key
+              return (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => setTemaElegido(key)}
+                  className={`rounded-xl border-2 p-3 text-center transition-all ${
+                    seleccionado ? 'border-[var(--color-bronce)]' : 'border-[var(--color-borde)]'
+                  }`}
+                >
+                  <div className="flex h-10 rounded-lg overflow-hidden mb-2">
+                    <div className="w-1/2" style={{ backgroundColor: tema.theme_color_primario }} />
+                    <div className="w-1/2" style={{ backgroundColor: tema.theme_color_secundario }} />
+                  </div>
+                  <span className="text-xs font-semibold">{tema.nombre}</span>
+                </button>
+              )
+            })}
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-[var(--color-gris)] mb-2">
-              Color de acento
-            </label>
-            <input type="color" name="theme_color_secundario" defaultValue="#7A5A32" className="w-full h-11 rounded-lg border border-[var(--color-borde)] cursor-pointer" />
-          </div>
+          <input type="hidden" name="tema" value={temaElegido} />
+          <p className="text-xs text-[var(--color-gris)] mt-2">Podrás cambiarlo después desde tu panel de administración.</p>
         </div>
       </div>
 

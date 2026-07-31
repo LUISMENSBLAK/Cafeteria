@@ -2,7 +2,9 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { sendWelcomeEmail } from '@/lib/email/sendWelcomeEmail'
+import { TEMAS_DISPONIBLES, TemaKey } from '@/lib/themes'
 import crypto from 'crypto'
+import sharp from 'sharp'
 
 export async function createTrialTenant(formData: FormData) {
   const nombreNegocio = formData.get('nombreNegocio') as string
@@ -10,8 +12,8 @@ export async function createTrialTenant(formData: FormData) {
   const emailContacto = formData.get('emailContacto') as string
   const telefonoContacto = formData.get('telefonoContacto') as string
   const logoFile = formData.get('logo') as File | null
-  const themePrimario = (formData.get('theme_color_primario') as string) || '#F5E6D3'
-  const themeSecundario = (formData.get('theme_color_secundario') as string) || '#7A5A32'
+  const temaKey = (formData.get('tema') as TemaKey) || 'cafe'
+  const tema = TEMAS_DISPONIBLES[temaKey] ?? TEMAS_DISPONIBLES.cafe
 
   if (!nombreNegocio || !nombreContacto || !emailContacto) {
     return { success: false, error: "Por favor llena todos los campos obligatorios." }
@@ -51,8 +53,10 @@ export async function createTrialTenant(formData: FormData) {
           email_contacto: emailContacto,
           telefono_contacto: telefonoContacto || null,
           estado: 'trial',
-          theme_color_primario: themePrimario,
-          theme_color_secundario: themeSecundario
+          theme_color_primario: tema.theme_color_primario,
+          theme_color_secundario: tema.theme_color_secundario,
+          theme_color_terciario: tema.theme_color_terciario,
+          theme_color_texto: tema.theme_color_texto,
         })
         .select()
         .single();

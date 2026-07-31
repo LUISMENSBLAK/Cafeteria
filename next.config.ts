@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['@opentelemetry/api'],
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
+    serverActions: {
+      bodySizeLimit: '5mb',
+    },
   },
 };
 
