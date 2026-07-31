@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     // 4. Crear Checkout Session
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const successUrl = `${baseUrl}/demo/${slug}/admin`;
+    const successUrl = `${baseUrl}/admin`;
     // Si cancela, regresarlo a la vista de vencido o login
     const cancelUrl = `${baseUrl}/demo/${slug}/vencido`; 
 
