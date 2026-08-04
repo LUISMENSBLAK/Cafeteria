@@ -16,8 +16,10 @@ export default function PruebaGratisPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-lg">
         <TrialForm />
       </div>
-      <div className="mt-12 text-center text-sm text-[var(--color-gris)]">
-        <p>¿Ya tienes una cuenta? <a href="/login" className="text-[var(--color-bronce)] font-semibold hover:underline">Inicia sesión</a></p>
+      <div className="mt-12 text-center text-sm">
+        <p className="text-[var(--color-negro)] font-bold underline">
+          ¿Ya tienes una cuenta? <a href="/login" className="text-[var(--color-bronce)] font-black hover:opacity-80">Inicia sesión</a>
+        </p>
       </div>
     </div>
   )
