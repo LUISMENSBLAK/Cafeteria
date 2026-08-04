@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -73,6 +73,7 @@ export function POSMenu({
   const [activeShift, setActiveShift] = useState<'manana' | 'tarde'>('manana')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const isSubmittingRef = useRef(false)
   const [selectedExistingOrderId, setSelectedExistingOrderId] = useState<string>('')
 
   /*
@@ -305,6 +306,8 @@ export function POSMenu({
     console.log('[DEBUG Agregar Más] orderType:', orderType)
     console.log('[DEBUG Agregar Más] activeOrderToAppend:', activeOrderToAppend?.id)
 
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setIsSubmitting(true)
     
     // Expand cart items: instead of { cantidad: 3 }, send 3 separate objects with cantidad: 1
@@ -338,7 +341,7 @@ export function POSMenu({
         res = await addItemsToOrder(activeOrderToAppend.id, itemsData, employeeId)
       } else {
         console.log('[DEBUG Agregar Más] Calling createOrder')
-        res = await createOrder(orderType, orderType === 'mesa' ? selectedTable : null, itemsData, employeeId, nombreCliente)
+        res = await createOrder(orderType, orderType === 'mesa' ? selectedTable : null, itemsData, employeeId, orderType === 'mesa' ? '' : nombreCliente)
       }
 
       if (res?.error) {
@@ -359,6 +362,7 @@ export function POSMenu({
       alert('Error inesperado al crear pedido: ' + err.message)
     } finally {
       setIsSubmitting(false)
+      isSubmittingRef.current = false
     }
   }
 
@@ -480,9 +484,9 @@ export function POSMenu({
           <div>
             <label className="text-xs font-bold tracking-widest text-[var(--color-gris)] uppercase mb-2 block">Tipo de Pedido</label>
             <div className="flex gap-2">
-              <Button variant={orderType === 'mesa' ? 'primary' : 'outline'} className="flex-1 py-4 text-sm font-semibold" onClick={() => { setOrderType('mesa'); setSelectedExistingOrderId(''); setSelectorCollapsed(false); setNombreConfirmed(false) }}>Mesa</Button>
-              <Button variant={orderType === 'para_llevar' ? 'primary' : 'outline'} className="flex-1 py-4 text-sm font-semibold" onClick={() => { setOrderType('para_llevar'); setSelectedExistingOrderId(''); setSelectorCollapsed(false); setNombreConfirmed(false) }}>Llevar</Button>
-              <Button variant={orderType === 'domicilio' ? 'primary' : 'outline'} className="flex-1 py-4 text-sm font-semibold" onClick={() => { setOrderType('domicilio'); setSelectedExistingOrderId(''); setSelectorCollapsed(false); setNombreConfirmed(false) }}>Domicilio</Button>
+              <Button variant={orderType === 'mesa' ? 'primary' : 'outline'} className="flex-1 py-4 text-sm font-semibold" onClick={() => { setOrderType('mesa'); setSelectedExistingOrderId(''); setSelectorCollapsed(false); setNombreConfirmed(false); setNombreCliente('') }}>Mesa</Button>
+              <Button variant={orderType === 'para_llevar' ? 'primary' : 'outline'} className="flex-1 py-4 text-sm font-semibold" onClick={() => { setOrderType('para_llevar'); setSelectedExistingOrderId(''); setSelectorCollapsed(false); setNombreConfirmed(false); setNombreCliente('') }}>Llevar</Button>
+              <Button variant={orderType === 'domicilio' ? 'primary' : 'outline'} className="flex-1 py-4 text-sm font-semibold" onClick={() => { setOrderType('domicilio'); setSelectedExistingOrderId(''); setSelectorCollapsed(false); setNombreConfirmed(false); setNombreCliente('') }}>Domicilio</Button>
             </div>
           </div>
           <div>
