@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 // Rutas que son completamente públicas (sin requerir autenticación)
 const PUBLIC_PATHS = [
+  '/',
   '/login',
   '/prueba-gratis',
 ]
@@ -43,7 +44,7 @@ export async function updateSession(request: NextRequest) {
   if (!user) {
     if (!isPublicPath(pathname) && !pathname.startsWith('/_next') && !pathname.includes('.')) {
       const url = request.nextUrl.clone()
-      url.pathname = '/login'
+      url.pathname = '/prueba-gratis'
       return NextResponse.redirect(url)
     }
 
