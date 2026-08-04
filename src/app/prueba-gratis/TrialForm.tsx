@@ -234,7 +234,7 @@ export function TrialForm() {
                     seleccionado ? 'border-[var(--color-bronce)]' : 'border-[var(--color-gris)] opacity-60'
                   }`}
                 >
-                  <div className="flex h-10 rounded-lg overflow-hidden mb-2">
+                  <div className="flex h-10 rounded-lg overflow-hidden mb-2 border border-[var(--color-gris)]">
                     <div className="w-1/2" style={{ backgroundColor: tema.theme_color_primario }} />
                     <div className="w-1/2" style={{ backgroundColor: tema.theme_color_secundario }} />
                   </div>
