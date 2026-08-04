@@ -115,7 +115,7 @@ export function TrialForm() {
     <form onSubmit={handleSubmit} className="bg-[var(--color-crema)] p-8 sm:p-10 rounded-2xl shadow-xl max-w-lg w-full border border-[var(--color-bronce)]/20 transition-colors duration-300">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-[var(--color-bronce)]">Comienza tu prueba</h2>
-        <p className="text-[var(--color-gris)] mt-2">14 días gratis, todas las funciones.</p>
+        <p className="text-[var(--color-negro)] mt-2">14 días gratis, todas las funciones.</p>
       </div>
 
       {error && (
@@ -180,7 +180,7 @@ export function TrialForm() {
 
         {/* Logo opcional — botón personalizado para evitar el widget nativo del navegador */}
         <div>
-          <label className="block text-sm font-semibold text-[var(--color-gris)] mb-2">
+          <label className="block text-sm font-semibold text-[var(--color-negro)] mb-2">
             Logo de tu negocio (opcional)
           </label>
           <div className="flex items-center gap-3">
@@ -218,7 +218,7 @@ export function TrialForm() {
 
         {/* Selector de tema */}
         <div>
-          <label className="block text-sm font-semibold text-[var(--color-gris)] mb-2">
+          <label className="block text-sm font-semibold text-[var(--color-negro)] mb-2">
             Elige el estilo de tu POS
           </label>
           <div className="grid grid-cols-3 gap-3">
@@ -244,7 +244,7 @@ export function TrialForm() {
             })}
           </div>
           <input type="hidden" name="tema" value={temaElegido} />
-          <p className="text-xs text-[var(--color-gris)] mt-2">Podrás cambiarlo después desde tu panel de administración.</p>
+          <p className="text-xs text-[var(--color-negro)] mt-2">Podrás cambiarlo después desde tu panel de administración.</p>
         </div>
       </div>
 
@@ -256,7 +256,7 @@ export function TrialForm() {
         {loading ? 'Creando tu cuenta...' : 'Crear mi cuenta gratis'}
       </Button>
       
-      <p className="text-xs text-center text-[var(--color-gris)] mt-4">
+      <p className="text-xs text-center text-[var(--color-negro)] mt-4">
         No se requiere tarjeta de crédito. Al crear tu cuenta aceptas nuestros términos y condiciones.
       </p>
     </form>

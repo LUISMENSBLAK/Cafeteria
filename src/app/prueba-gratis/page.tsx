@@ -7,15 +7,7 @@ export const metadata = {
 
 export default function PruebaGratisPage() {
   return (
-    <div className="h-full overflow-y-auto bg-[var(--color-crema)] flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-[url('/bg-pattern.svg')] bg-repeat">
-      <div className="sm:mx-auto sm:w-full sm:max-w-lg mb-8">
-        <h1 className="text-center text-4xl font-extrabold text-[var(--color-bronce)] tracking-tight">
-          Abaroa POS
-        </h1>
-        <p className="mt-4 text-center text-lg text-[var(--color-gris)]">
-          Impulsa tu negocio con un Punto de Venta diseñado para cafeterías y restaurantes.
-        </p>
-      </div>
+    <div className="h-full overflow-y-auto flex flex-col py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-lg">
         <TrialForm />
       </div>
