@@ -16,7 +16,7 @@ import { formatOrderType, getOrderTypeColorClass } from '@/lib/utils'
 import { groupOrderItems, GroupedOrderItem, calcTotal } from '@/lib/orderUtils'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, Lock, Unlock, Printer } from 'lucide-react'
 import {
   enqueuePendingPayment,
   getPendingPayments,
@@ -541,6 +541,63 @@ export default function CajaView({ initialOrders, products, extras, ingredients,
     await handlePrintTicket(printData)
     setSelectedItems([])
     setMontoRecibidoStr('')
+  }
+
+  const toggleCajaApertura = async () => {
+    const newVal = !(settings?.caja_apertura_automatica ?? true)
+    setSettings((prev: any) => ({ ...prev, caja_apertura_automatica: newVal }))
+    const { error } = await supabase.from('settings').update({ caja_apertura_automatica: newVal }).eq('id', 1) // En Cafeterias, la tabla settings podría necesitar scope por tenant_id si aplica, pero aquí asumimos ID=1 por ahora o usar el tenant actual
+    if (error) {
+      pushToast('Error al actualizar ajuste de cajón', 'info')
+      setSettings((prev: any) => ({ ...prev, caja_apertura_automatica: !newVal }))
+    } else {
+      pushToast(newVal ? 'Apertura automática activada' : 'Apertura automática desactivada', 'success')
+    }
+  }
+
+  const handlePrintCuenta = async () => {
+    if (!selectedOrder || selectedItems.length === 0) {
+      pushToast('Selecciona al menos un item para imprimir la cuenta', 'info')
+      return
+    }
+
+    const selectedItemObjects = selectedItems.map(id => unpaidItems.find((i: any) => i.id === id)).filter(Boolean)
+    const groupedSelected = groupOrderItems(selectedItemObjects)
+
+    const itemsToPrint = groupedSelected.map(group => {
+      const item = group.representante
+      return {
+        nombre: item.nombre_producto ?? item.product?.nombre ?? 'Producto eliminado',
+        cantidad: group.cantidad_total,
+        precio_unitario: item.precio_unitario,
+        variante_nombre: item.nombre_variante || item.variante?.nombre,
+        extras_pago: item.order_item_extras?.map((ep: any) => ({ nombre: ep.nombre_extra, precio: ep.precio_adicional })) || [],
+        extra_nombre: item.extra?.nombre,
+        extra_precio: item.extra_precio,
+        ingredientes_seleccionados: item.ingredientes_seleccionados,
+        cargo_ingredientes_extra: item.cargo_ingredientes_extra,
+        notas: item.notas,
+      }
+    })
+
+    const tipoPedido = selectedOrder.tipo === 'mesa'
+      ? `Mesa ${selectedOrder.tables?.numero}`
+      : selectedOrder.tipo === 'llevar' ? 'Para llevar'
+      : selectedOrder.tipo === 'domicilio' ? 'A domicilio'
+      : selectedOrder.tipo
+
+    const printData: PrintOrderData = {
+      orderId: selectedOrder.id,
+      items: itemsToPrint,
+      total: amountToPay,
+      metodoPago: '',
+      fecha: new Date().toLocaleString(),
+      tipoPedido,
+      atendidoPor: employeeName,
+      tipoTicket: 'cuenta',
+    }
+
+    await handlePrintTicket(printData)
   }
 
   const cancelMessage = (
@@ -1348,6 +1405,31 @@ export default function CajaView({ initialOrders, products, extras, ingredients,
                 </div>
               </div>
             )}
+
+            <div className="flex gap-2 justify-between items-center mt-2 mb-1">
+              <Button size="sm" variant="outline" onClick={handlePrintCuenta} disabled={selectedItems.length === 0 || isPrinting}>
+                <Printer size={16} className="mr-2" /> Imprimir Cuenta
+              </Button>
+              
+              <div className="flex flex-col items-end gap-1">
+                <button 
+                  className="flex items-center gap-1.5 text-xs text-[var(--color-texto-secundario)] hover:text-[var(--color-acento)] bg-[var(--color-superficie-alt)] px-3 py-2 rounded border border-[var(--color-borde)] transition-colors"
+                  onClick={toggleCajaApertura}
+                  title="Alternar apertura automática del cajón de dinero"
+                >
+                  {settings?.caja_apertura_automatica ?? true ? (
+                    <><Unlock size={14} className="text-[var(--color-exito)]" /> <span className="font-semibold text-[var(--color-texto)]">Cajón: abre al cobrar</span></>
+                  ) : (
+                    <><Lock size={14} className="text-[var(--color-advertencia)]" /> <span className="font-semibold text-[var(--color-texto)]">Cajón: no abre</span></>
+                  )}
+                </button>
+                {settings?.impresora_modo === 'browser' && (
+                  <div className="text-[10px] text-[var(--color-advertencia)] max-w-[220px] text-right leading-tight">
+                    El cajón no puede abrirse automáticamente con este modo de impresión, requiere impresora USB (QZ Tray) o app Android.
+                  </div>
+                )}
+              </div>
+            </div>
 
             <Button
               size="lg"

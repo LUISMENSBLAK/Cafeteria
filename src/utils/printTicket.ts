@@ -489,18 +489,17 @@ function escapeHtml(value: unknown): string {
   })[character] ?? character)
 }
 
-function printWithBrowser(orderData: PrintOrderData, settings: PrinterSettings): PrintResult {
+export function buildTicketHtml(orderData: PrintOrderData, settings: PrinterSettings): string {
   const font = settings.ticket_tamano_fuente || 'normal'
   const fontSize = font === 'pequena' ? '10px' : font === 'grande' ? '14px' : '12px'
   const showAttendant = settings.ticket_mostrar_atendido_por ?? true
   const showLogo = settings.ticket_mostrar_logo ?? true
   const farewell = settings.ticket_mensaje_despedida ?? '¡Gracias por su compra!'
   const logoUrl = settings.ticket_logo_url || '/ABAROA_letras_negras_sin_fondo.png'
-
   const widthMm = settings.impresora_papel_mm === '58' ? '58mm' : '80mm'
-  
-  const ticketHtml = `
-    <div style="font-family: Arial, sans-serif; color:#111; font-size:${fontSize}; width:${widthMm}; padding:3mm; box-sizing:border-box;">
+
+  return `
+    <div style="font-family: Arial, sans-serif; color:#111; font-size:${fontSize}; width:${widthMm}; padding:3mm; box-sizing:border-box; background:white;">
       <div style="text-align:center; margin-bottom:10px;">
         ${showLogo ? `<img src="${escapeHtml(logoUrl)}" alt="Logo" style="width:46mm; max-height:28mm; object-fit:contain; display:block; margin:0 auto 5px;" />` : ''}
         <div style="font-size:13px; font-weight:bold;">${escapeHtml(settings.negocio_nombre ?? 'Abaroa Cafetería')}</div>
@@ -531,6 +530,11 @@ function printWithBrowser(orderData: PrintOrderData, settings: PrinterSettings):
         <div>${escapeHtml(farewell).replace(/\n/g, '<br>')}</div>
       </div>
     </div>`
+}
+
+function printWithBrowser(orderData: PrintOrderData, settings: PrinterSettings): PrintResult {
+  const widthMm = settings.impresora_papel_mm === '58' ? '58mm' : '80mm'
+  const ticketHtml = buildTicketHtml(orderData, settings)
 
   let printArea = document.getElementById('abaroa-print-area')
   if (!printArea) {

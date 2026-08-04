@@ -75,6 +75,7 @@ export function POSMenu({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isSubmittingRef = useRef(false)
   const [selectedExistingOrderId, setSelectedExistingOrderId] = useState<string>('')
+  const [stockWarning, setStockWarning] = useState<string | null>(null)
 
   /*
    * Warn the user before closing/reloading the tab if there are items in the cart.
@@ -160,13 +161,15 @@ export function POSMenu({
   const handleProductClick = (product: Product) => {
     // Inventory check: if product manages inventory and is out of stock, block
     if (product.maneja_inventario && (product.stock_actual ?? 0) <= 0) {
-      return alert(`Ya no hay existencias de "${product.nombre}"`)
+      setStockWarning(`Ya no hay existencias de "${product.nombre}"`)
+      return
     }
     // Inventory check: if the cart already has the maximum allowed quantity
     if (product.maneja_inventario && product.stock_actual != null) {
       const inCart = cart.filter(i => i.product.id === product.id).reduce((s, i) => s + i.cantidad, 0)
       if (inCart >= product.stock_actual) {
-        return alert(`Ya no hay más existencias de "${product.nombre}" (stock: ${product.stock_actual})`)
+        setStockWarning(`Ya no hay más existencias de "${product.nombre}" (stock: ${product.stock_actual})`)
+        return
       }
     }
     const productExtras = extras.filter(
@@ -812,6 +815,19 @@ export function POSMenu({
           </div>
         )}
       </Modal>
+      {/* Error de Stock Modal */}
+      <Modal isOpen={!!stockWarning} onClose={() => setStockWarning(null)} title="Existencias insuficientes">
+        <div className="flex flex-col items-center text-center gap-4 py-2">
+          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-3xl">
+            📦
+          </div>
+          <p className="text-[var(--color-texto)] text-base">{stockWarning}</p>
+          <Button className="w-full h-12" onClick={() => setStockWarning(null)}>
+            Entendido
+          </Button>
+        </div>
+      </Modal>
+
     </div>
   )
 }

@@ -11,7 +11,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { getCroppedImg } from '@/utils/cropImage'
 import { createEmployee, updateEmployee, deleteEmployee } from './actions'
 import { updatePaymentMethod } from '@/app/caja/actions'
-import { detectarImpresoras } from '@/utils/printTicket'
+import { detectarImpresoras, buildTicketHtml } from '@/utils/printTicket'
 import { AndroidPrinterPanel } from '@/components/AndroidPrinterPanel'
 import { AndroidBluetoothPrinterPanel } from '@/components/AndroidBluetoothPrinterPanel'
 import { 
@@ -792,48 +792,68 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
 
   const downloadTicketPDF = async (payment: any) => {
     const { jsPDF } = await import('jspdf')
-    const doc = new jsPDF({ unit: 'mm', format: [80, 200] })
-    doc.setFont('courier', 'normal')
-    doc.setFontSize(10)
-    
-    let y = 10
-    doc.text("ABAROA", 40, y, { align: 'center' }); y += 5;
-    doc.setFontSize(8)
-    doc.text("CAFETERIA", 40, y, { align: 'center' }); y += 10;
-    
-    doc.setFontSize(10)
-    doc.text(`Ticket: #${payment.order_id?.substring(0,8).toUpperCase()}`, 5, y); y += 5;
-    doc.text(`Fecha: ${new Date(payment.creado_en).toLocaleString()}`, 5, y); y += 10;
-    doc.text("-".repeat(32), 5, y); y += 5;
-    
-    payment.order?.order_items?.forEach((item: any) => {
-      if (item.cancelado) return;
-      const totalItem = (item.precio_unitario || 0) * item.cantidad
-      doc.text(`${item.cantidad}x ${item.product?.nombre} $${totalItem.toFixed(2)}`, 5, y); y += 5;
-      
-      if (item.nombre_variante) {
-        doc.text(`  ◆ ${item.nombre_variante}`, 5, y); y += 5;
-      }
-      
-      const extras = item.order_item_extras || []
-      extras.forEach((ex: any) => {
-        doc.text(`  + ${ex.nombre_extra} $${(ex.precio_adicional * item.cantidad).toFixed(2)}`, 5, y); y += 5;
-      })
-      
-      if (item.notas) {
-        doc.setFont('courier', 'italic')
-        doc.text(`  Nota: ${item.notas}`, 5, y); y += 5;
-        doc.setFont('courier', 'normal')
-      }
-    })
-    
-    doc.text("-".repeat(32), 5, y); y += 5;
-    doc.text(`Total: $${payment.monto_cobrado.toFixed(2)}`, 75, y, { align: 'right' }); y += 5;
-    doc.text(`Pagado con: ${payment.metodo?.toUpperCase()}`, 75, y, { align: 'right' }); y += 10;
-    
-    doc.text("Gracias por su compra!", 40, y, { align: 'center' });
-    
-    doc.save(`Ticket_${payment.order_id?.substring(0,8).toUpperCase()}.pdf`)
+    const html2canvas = (await import('html2canvas')).default
+
+    const orderData = {
+      orderId: payment.order_id ?? payment.order?.id ?? '',
+      items: (payment.order?.order_items ?? [])
+        .filter((item: any) => !item.cancelado)
+        .map((item: any) => ({
+          nombre: item.product?.nombre ?? 'Producto eliminado',
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          variante_nombre: item.nombre_variante,
+          extras_pago: (item.order_item_extras ?? []).map((ex: any) => ({ nombre: ex.nombre_extra, precio: ex.precio_adicional })),
+          ingredientes_seleccionados: item.ingredientes_seleccionados,
+          notas: item.notas,
+        })),
+      total: payment.monto_cobrado,
+      metodoPago: payment.metodo,
+      fecha: new Date(payment.creado_en).toLocaleString(),
+      tipoPedido: payment.order?.tipo === 'mesa'
+        ? `Mesa ${payment.order?.tables?.numero ?? ''}`
+        : payment.order?.tipo,
+      atendidoPor: payment.cobrador?.nombre,
+      montoRecibido: payment.monto_recibido,
+      cambio: payment.cambio,
+    }
+
+    const html = buildTicketHtml(orderData, settings)
+
+    const container = document.createElement('div')
+    container.style.position = 'fixed'
+    container.style.left = '-9999px'
+    container.style.top = '0'
+    container.innerHTML = html
+    document.body.appendChild(container)
+
+    try {
+      // Esperar a que todas las imágenes dentro del ticket (el logo) terminen de cargar,
+      // antes de tomar la captura — si no, html2canvas la captura vacía.
+      const images = Array.from(container.querySelectorAll('img'))
+      await Promise.all(
+        images.map(img => {
+          if (img.complete && img.naturalWidth > 0) return Promise.resolve()
+          return new Promise<void>(resolve => {
+            img.crossOrigin = 'anonymous'
+            img.onload = () => resolve()
+            img.onerror = () => resolve() // si el logo falla, seguimos sin él en vez de trabarnos
+            window.setTimeout(() => resolve(), 3000) // respaldo por si nunca dispara
+          })
+        })
+      )
+
+      const target = container.firstElementChild as HTMLElement
+      const canvas = await html2canvas(target, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+      const imgData = canvas.toDataURL('image/png')
+      const widthMm = 80
+      const heightMm = (canvas.height * widthMm) / canvas.width
+      const doc = new jsPDF({ unit: 'mm', format: [widthMm, heightMm] })
+      doc.addImage(imgData, 'PNG', 0, 0, widthMm, heightMm)
+      doc.save(`Ticket_${orderData.orderId.substring(0, 8).toUpperCase()}.pdf`)
+    } finally {
+      document.body.removeChild(container)
+    }
   }
 
   // --- Handlers ---
