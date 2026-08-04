@@ -102,7 +102,7 @@ export function TrialForm() {
   } as React.CSSProperties
 
   return (
-    <div style={previewStyle} className="transition-colors duration-300">
+    <div style={previewStyle} className="min-h-screen bg-[var(--color-crema)] bg-[url('/bg-pattern.svg')] bg-repeat flex flex-col justify-center py-12 px-4 transition-colors duration-300">
       <h1 className="text-center text-4xl font-extrabold text-[var(--color-bronce)] tracking-tight mb-4">
         Abaroa POS
       </h1>
@@ -184,7 +184,7 @@ export function TrialForm() {
             type="file"
             name="logo"
             accept="image/png,image/jpeg,image/webp"
-            className="w-full text-sm border border-[var(--color-gris)] rounded-lg px-3 py-2 bg-white/80 text-[var(--color-negro)]"
+            className="w-full text-sm text-black border border-[var(--color-gris)] rounded-lg px-3 py-2 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-[var(--color-crema)] file:text-black"
             onChange={(e) => {
               const file = e.target.files?.[0]
               if (file && file.size > 5 * 1024 * 1024) {
@@ -243,6 +243,10 @@ export function TrialForm() {
         No se requiere tarjeta de crédito. Al crear tu cuenta aceptas nuestros términos y condiciones.
       </p>
       </form>
+      <p className="mt-6 text-center text-sm text-[var(--color-gris)]">
+        ¿Ya tienes una cuenta?{' '}
+        <a href="/login" className="text-[var(--color-bronce)] font-semibold hover:underline">Inicia sesión</a>
+      </p>
     </div>
   )
 }

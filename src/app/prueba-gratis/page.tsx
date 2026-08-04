@@ -7,12 +7,9 @@ export const metadata = {
 
 export default function PruebaGratisPage() {
   return (
-    <div className="h-full overflow-y-auto flex flex-col py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-lg">
+    <div className="h-full overflow-y-auto flex flex-col">
+      <div className="sm:mx-auto sm:w-full sm:max-w-lg w-full">
         <TrialForm />
-      </div>
-      <div className="mt-12 text-center text-sm text-[var(--color-gris)]">
-        <p>¿Ya tienes una cuenta? <a href="/login" className="text-[var(--color-bronce)] font-semibold hover:underline">Inicia sesión</a></p>
       </div>
     </div>
   )
