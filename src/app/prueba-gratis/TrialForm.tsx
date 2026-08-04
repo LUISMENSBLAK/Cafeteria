@@ -102,11 +102,18 @@ export function TrialForm() {
   } as React.CSSProperties
 
   return (
-    <form onSubmit={handleSubmit} style={previewStyle} className="bg-[var(--color-crema)] p-8 sm:p-10 rounded-2xl shadow-xl max-w-lg w-full border border-[var(--color-bronce)] transition-colors duration-300">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-[var(--color-bronce)]">Comienza tu prueba</h2>
-        <p className="text-[var(--color-gris)] mt-2">14 días gratis, todas las funciones.</p>
-      </div>
+    <div style={previewStyle} className="transition-colors duration-300">
+      <h1 className="text-center text-4xl font-extrabold text-[var(--color-bronce)] tracking-tight mb-4">
+        Abaroa POS
+      </h1>
+      <p className="text-center text-lg text-[var(--color-gris)] mb-8">
+        Impulsa tu negocio con un Punto de Venta diseñado para cafeterías y restaurantes.
+      </p>
+      <form onSubmit={handleSubmit} className="bg-[var(--color-crema)] p-8 sm:p-10 rounded-2xl shadow-xl w-full border border-[var(--color-bronce)]/30">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-[var(--color-bronce)]">Comienza tu prueba</h2>
+          <p className="text-[var(--color-gris)] mt-2">14 días gratis, todas las funciones.</p>
+        </div>
 
       {error && (
         <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm mb-6 border border-red-200">
@@ -235,6 +242,7 @@ export function TrialForm() {
       <p className="text-xs text-center text-[var(--color-gris)] mt-4">
         No se requiere tarjeta de crédito. Al crear tu cuenta aceptas nuestros términos y condiciones.
       </p>
-    </form>
+      </form>
+    </div>
   )
 }
