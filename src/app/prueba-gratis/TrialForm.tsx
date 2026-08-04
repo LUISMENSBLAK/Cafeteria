@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { createTrialTenant } from './actions'
@@ -18,6 +18,24 @@ export function TrialForm() {
   const [copied, setCopied] = useState(false)
   const [temaElegido, setTemaElegido] = useState<TemaKey>('cafe')
   const [logoError, setLogoError] = useState<string | null>(null)
+  const [logoName, setLogoName] = useState<string | null>(null)
+
+  // Aplica el tema a nivel global (<html>) para que cubra toda la página
+  useEffect(() => {
+    const tema = TEMAS_DISPONIBLES[temaElegido]
+    const root = document.documentElement
+    root.style.setProperty('--color-crema', tema.theme_color_primario)
+    root.style.setProperty('--color-bronce', tema.theme_color_secundario)
+    root.style.setProperty('--color-gris', tema.theme_color_terciario)
+    root.style.setProperty('--color-negro', tema.theme_color_texto)
+
+    return () => {
+      root.style.removeProperty('--color-crema')
+      root.style.removeProperty('--color-bronce')
+      root.style.removeProperty('--color-gris')
+      root.style.removeProperty('--color-negro')
+    }
+  }, [temaElegido])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -93,27 +111,12 @@ export function TrialForm() {
     )
   }
 
-  const temaActivo = TEMAS_DISPONIBLES[temaElegido]
-  const previewStyle = {
-    '--color-crema': temaActivo.theme_color_primario,
-    '--color-bronce': temaActivo.theme_color_secundario,
-    '--color-gris': temaActivo.theme_color_terciario,
-    '--color-negro': temaActivo.theme_color_texto,
-  } as React.CSSProperties
-
   return (
-    <div style={previewStyle} className="min-h-screen bg-[var(--color-crema)] bg-[url('/bg-pattern.svg')] bg-repeat flex flex-col justify-center py-12 px-4 transition-colors duration-300">
-      <h1 className="text-center text-4xl font-extrabold text-[var(--color-bronce)] tracking-tight mb-4">
-        Abaroa POS
-      </h1>
-      <p className="text-center text-lg text-[var(--color-gris)] mb-8">
-        Impulsa tu negocio con un Punto de Venta diseñado para cafeterías y restaurantes.
-      </p>
-      <form onSubmit={handleSubmit} className="bg-[var(--color-crema)] p-8 sm:p-10 rounded-2xl shadow-xl w-full border border-[var(--color-bronce)]/30">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-[var(--color-bronce)]">Comienza tu prueba</h2>
-          <p className="text-[var(--color-gris)] mt-2">14 días gratis, todas las funciones.</p>
-        </div>
+    <form onSubmit={handleSubmit} className="bg-[var(--color-crema)] p-8 sm:p-10 rounded-2xl shadow-xl max-w-lg w-full border border-[var(--color-bronce)]/20 transition-colors duration-300">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-[var(--color-bronce)]">Comienza tu prueba</h2>
+        <p className="text-[var(--color-gris)] mt-2">14 días gratis, todas las funciones.</p>
+      </div>
 
       {error && (
         <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm mb-6 border border-red-200">
@@ -175,31 +178,45 @@ export function TrialForm() {
           />
         </div>
 
-        {/* Logo opcional */}
+        {/* Logo opcional — botón personalizado para evitar el widget nativo del navegador */}
         <div>
           <label className="block text-sm font-semibold text-[var(--color-gris)] mb-2">
             Logo de tu negocio (opcional)
           </label>
-          <input
-            type="file"
-            name="logo"
-            accept="image/png,image/jpeg,image/webp"
-            className="w-full text-sm text-black border border-[var(--color-gris)] rounded-lg px-3 py-2 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-[var(--color-crema)] file:text-black"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file && file.size > 5 * 1024 * 1024) {
-                setLogoError('La imagen no puede pesar más de 5MB.')
-                e.target.value = ''
-              } else {
-                setLogoError(null)
-              }
-            }}
-          />
+          <div className="flex items-center gap-3">
+            <label
+              htmlFor="logo-input"
+              className="cursor-pointer bg-[var(--color-crema)] border border-[var(--color-gris)] text-black text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-80 transition-opacity whitespace-nowrap"
+            >
+              Elegir archivo
+            </label>
+            <input
+              id="logo-input"
+              type="file"
+              name="logo"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file && file.size > 5 * 1024 * 1024) {
+                  setLogoError('La imagen no puede pesar más de 5MB.')
+                  e.target.value = ''
+                  setLogoName(null)
+                } else {
+                  setLogoError(null)
+                  setLogoName(file ? file.name : null)
+                }
+              }}
+            />
+            <span className="text-sm text-[var(--color-negro)] truncate">
+              {logoName || 'Ningún archivo seleccionado'}
+            </span>
+          </div>
           {logoError && <p className="text-red-600 text-xs mt-1">{logoError}</p>}
           <p className="text-xs text-[var(--color-gris)] mt-1">Puedes agregarlo después si no lo tienes a la mano.</p>
         </div>
 
-        {/* Tema de colores */}
+        {/* Selector de tema */}
         <div>
           <label className="block text-sm font-semibold text-[var(--color-gris)] mb-2">
             Elige el estilo de tu POS
@@ -242,11 +259,6 @@ export function TrialForm() {
       <p className="text-xs text-center text-[var(--color-gris)] mt-4">
         No se requiere tarjeta de crédito. Al crear tu cuenta aceptas nuestros términos y condiciones.
       </p>
-      </form>
-      <p className="mt-6 text-center text-sm text-[var(--color-gris)]">
-        ¿Ya tienes una cuenta?{' '}
-        <a href="/login" className="text-[var(--color-bronce)] font-semibold hover:underline">Inicia sesión</a>
-      </p>
-    </div>
+    </form>
   )
 }
