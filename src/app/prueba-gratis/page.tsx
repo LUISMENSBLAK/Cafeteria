@@ -8,7 +8,7 @@ export const metadata = {
 export default function PruebaGratisPage() {
   return (
     <div className="h-full overflow-y-auto bg-[var(--color-crema)] flex flex-col py-12 sm:px-6 lg:px-8 bg-[url('/bg-pattern.svg')] bg-repeat">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md mb-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-lg mb-8">
         <h1 className="text-center text-4xl font-extrabold text-[var(--color-bronce)] tracking-tight">
           Abaroa POS
         </h1>
@@ -17,7 +17,7 @@ export default function PruebaGratisPage() {
         </p>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="sm:mx-auto sm:w-full sm:max-w-lg">
         <TrialForm />
       </div>
       

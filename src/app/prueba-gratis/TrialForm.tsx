@@ -56,7 +56,7 @@ export function TrialForm() {
     const loginUrl = `/demo/${successData.slug}/login`
     
     return (
-      <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border border-[var(--color-crema)]">
+      <div className="bg-[var(--color-crema)] p-8 rounded-2xl shadow-xl max-w-lg w-full border border-[var(--color-bronce)]">
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
             ✓
@@ -93,8 +93,16 @@ export function TrialForm() {
     )
   }
 
+  const temaActivo = TEMAS_DISPONIBLES[temaElegido]
+  const previewStyle = {
+    '--color-crema': temaActivo.theme_color_primario,
+    '--color-bronce': temaActivo.theme_color_secundario,
+    '--color-gris': temaActivo.theme_color_terciario,
+    '--color-negro': temaActivo.theme_color_texto,
+  } as React.CSSProperties
+
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl max-w-md w-full border border-[var(--color-crema)]">
+    <form onSubmit={handleSubmit} style={previewStyle} className="bg-[var(--color-crema)] p-8 sm:p-10 rounded-2xl shadow-xl max-w-lg w-full border border-[var(--color-bronce)] transition-colors duration-300">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-[var(--color-bronce)]">Comienza tu prueba</h2>
         <p className="text-[var(--color-gris)] mt-2">14 días gratis, todas las funciones.</p>
@@ -169,7 +177,7 @@ export function TrialForm() {
             type="file"
             name="logo"
             accept="image/png,image/jpeg,image/webp"
-            className="w-full text-sm border border-[var(--color-borde)] rounded-lg px-3 py-2"
+            className="w-full text-sm border border-[var(--color-gris)] rounded-lg px-3 py-2 bg-white/80 text-[var(--color-negro)]"
             onChange={(e) => {
               const file = e.target.files?.[0]
               if (file && file.size > 5 * 1024 * 1024) {
@@ -199,7 +207,7 @@ export function TrialForm() {
                   key={key}
                   onClick={() => setTemaElegido(key)}
                   className={`rounded-xl border-2 p-3 text-center transition-all ${
-                    seleccionado ? 'border-[var(--color-bronce)]' : 'border-[var(--color-borde)]'
+                    seleccionado ? 'border-[var(--color-bronce)]' : 'border-[var(--color-gris)] opacity-60'
                   }`}
                 >
                   <div className="flex h-10 rounded-lg overflow-hidden mb-2">
