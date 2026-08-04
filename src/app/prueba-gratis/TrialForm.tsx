@@ -186,7 +186,7 @@ export function TrialForm() {
           <div className="flex items-center gap-3">
             <label
               htmlFor="logo-input"
-              className={`cursor-pointer bg-[var(--color-crema)] border border-[var(--color-gris)] text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-80 transition-opacity whitespace-nowrap ${temaElegido === 'oscuro' ? 'text-[var(--color-negro)]' : 'text-white'}`}
+              className={`cursor-pointer bg-[var(--color-crema)] border border-[var(--color-gris)] text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-80 transition-opacity whitespace-nowrap ${temaElegido === 'oscuro' ? 'text-[var(--color-negro)]' : 'text-black'}`}
             >
               Elegir archivo
             </label>
