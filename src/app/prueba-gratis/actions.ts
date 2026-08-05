@@ -19,6 +19,16 @@ export async function createTrialTenant(formData: FormData) {
     return { success: false, error: "Por favor llena todos los campos obligatorios." }
   }
 
+  if (logoFile && logoFile.size > 0) {
+    const allowedLogoTypes = new Set(['image/png', 'image/jpeg', 'image/webp'])
+    if (!allowedLogoTypes.has(logoFile.type)) {
+      return { success: false, error: 'El logo debe ser PNG, JPG, JPEG o WebP.' }
+    }
+    if (logoFile.size > 5 * 1024 * 1024) {
+      return { success: false, error: 'La imagen no puede pesar más de 5MB.' }
+    }
+  }
+
   // 1. Cliente aislado
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,6 +41,9 @@ export async function createTrialTenant(formData: FormData) {
   let randomPassword = '';
 
   try {
+    const trialStartedAt = new Date()
+    const trialTerminaEn = new Date(trialStartedAt.getTime() + 14 * 24 * 60 * 60 * 1000)
+
     // 2. Generar slug con reintentos
     const baseSlug = nombreNegocio
       .toLowerCase()
@@ -53,6 +66,10 @@ export async function createTrialTenant(formData: FormData) {
           email_contacto: emailContacto,
           telefono_contacto: telefonoContacto || null,
           estado: 'trial',
+          trial_started_at: trialStartedAt.toISOString(),
+          trial_termina_en: trialTerminaEn.toISOString(),
+          billing_status: 'trialing',
+          plan_type: null,
           theme_color_primario: tema.theme_color_primario,
           theme_color_secundario: tema.theme_color_secundario,
           theme_color_terciario: tema.theme_color_terciario,
@@ -81,7 +98,7 @@ export async function createTrialTenant(formData: FormData) {
 
     createdTenantId = tenantData.id;
     finalSlug = tenantData.slug;
-    const trialTerminaEn = tenantData.trial_termina_en;
+    const storedTrialEnd = tenantData.trial_termina_en;
 
     // 3. Crear el usuario en Supabase Auth
     randomPassword = crypto.randomBytes(12).toString('base64').slice(0, 16);
@@ -141,11 +158,21 @@ export async function createTrialTenant(formData: FormData) {
     // --- 4.5. SUBIR LOGO SI SE ADJUNTÓ ---
     if (logoFile && logoFile.size > 0) {
       try {
-        const ext = logoFile.name.split('.').pop() || 'png'
-        const fileName = `tenant-logos/${createdTenantId}.${ext}`
+        const originalBuffer = Buffer.from(await logoFile.arrayBuffer())
+        const metadata = await sharp(originalBuffer).metadata()
+        if (!metadata.format || !['png', 'jpeg', 'webp'].includes(metadata.format)) {
+          throw new Error('Formato de imagen no válido.')
+        }
+
+        const optimizedLogo = await sharp(originalBuffer)
+          .rotate()
+          .resize(1600, 1000, { fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 88 })
+          .toBuffer()
+        const fileName = `tenant-logos/${createdTenantId}.webp`
         const { error: logoUploadError } = await supabaseAdmin.storage
           .from('productos')
-          .upload(fileName, logoFile, { upsert: true })
+          .upload(fileName, optimizedLogo, { upsert: true, contentType: 'image/webp' })
 
         if (!logoUploadError) {
           const { data: { publicUrl } } = supabaseAdmin.storage.from('productos').getPublicUrl(fileName)
@@ -214,7 +241,7 @@ export async function createTrialTenant(formData: FormData) {
         nombreContacto, 
         password: randomPassword, 
         slug: finalSlug,
-        trialTerminaEn 
+        trialTerminaEn: storedTrialEnd
       })
     } catch (emailError) {
       console.error('Error enviando correo de bienvenida con Resend:', emailError)
@@ -223,7 +250,7 @@ export async function createTrialTenant(formData: FormData) {
     // Éxito
     return { success: true, slug: finalSlug, email: emailContacto, password: randomPassword }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error en createTrialTenant:', error);
     
     // Rollback manual
@@ -236,6 +263,7 @@ export async function createTrialTenant(formData: FormData) {
       if (rbTenErr) console.error("Error rollback tenant:", rbTenErr);
     }
     
-    return { success: false, error: error.message || "Ocurrió un error inesperado al procesar tu solicitud." }
+    const message = error instanceof Error ? error.message : "Ocurrió un error inesperado al procesar tu solicitud."
+    return { success: false, error: message }
   }
 }

@@ -2,13 +2,24 @@ import { createClient } from '@/utils/supabase/server'
 import AdminView from './AdminView'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import Image from 'next/image'
+import { HeaderBrand } from '@/components/HeaderBrand'
+import { getPosThemeStyle } from '@/lib/themes'
 
 export default async function AdminPage() {
   const headersList = await headers()
   const headerId = headersList.get('x-employee-id')
   const headerNombre = headersList.get('x-employee-nombre')
   const headerRol = headersList.get('x-employee-rol')
+  const rawBusinessName = headersList.get('x-business-name')
+  const rawLogoUrl = headersList.get('x-logo-url')
+  const tenantSlug = headersList.get('x-tenant-slug') ?? ''
+  const posThemeStyle = getPosThemeStyle(
+    headersList.get('x-theme-primario') ?? '#F5E6D3',
+    headersList.get('x-theme-secundario') ?? '#7A5A32',
+    headersList.get('x-theme-terciario') ?? '#8C8880',
+  )
+  const businessName = rawBusinessName ? decodeURIComponent(rawBusinessName) : 'Innova Coffee POS'
+  const logoUrl = rawLogoUrl ? decodeURIComponent(rawLogoUrl) : ''
 
   let employee: { id: string; nombre: string; rol: string }
   const supabase = await createClient()
@@ -34,13 +45,14 @@ export default async function AdminPage() {
   // For better UX, we'll fetch basic counts.
 
   return (
-    <div className="min-h-screen bg-[var(--color-crema)]">
+    <div className="pos-app min-h-screen bg-[var(--color-crema)] text-slate-900" style={posThemeStyle}>
       <header className="bg-white border-b border-[var(--color-bronce)]/20 p-4 flex justify-between items-center shadow-sm sticky top-0 z-10">
         <div>
-          <Image src="/LogoTrasnparenteAbaroa.png" alt="Abaroa Logo" width={100} height={32} className="h-8 w-auto object-contain bg-transparent" style={{ width: 'auto' }} />
-          <p className="text-xs text-[var(--color-gris)] tracking-widest uppercase">Admin: {employee.nombre}</p>
+          <HeaderBrand businessName={businessName} logoUrl={logoUrl} />
+          <p className="text-xs text-slate-600 tracking-widest uppercase">Admin: {employee.nombre}</p>
         </div>
         <form action="/auth/signout" method="post">
+          <input type="hidden" name="tenantSlug" value={tenantSlug} />
           <button className="text-sm font-bold text-red-600 uppercase tracking-wider hover:underline">
             Salir
           </button>

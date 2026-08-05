@@ -1,18 +1,25 @@
 import { headers } from 'next/headers'
+import { CheckCircle2, Database, Headphones, MessageCircle, ShieldCheck } from 'lucide-react'
 
-interface Props {
-  params: Promise<{ slug: string }>
-}
+import { CommerceShell, TenantIdentity } from '@/components/public/CommerceShell'
+import { PaymentPlans } from '@/components/public/PaymentPlans'
+
+interface Props { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
   const headersList = await headers()
   const rawName = headersList.get('x-business-name')
   const businessName = rawName ? decodeURIComponent(rawName) : slug
-  return {
-    title: `Prueba Vencida — ${businessName}`,
-  }
+  return { title: `Continúa con Innova Coffee POS | ${businessName}` }
 }
+
+const realBenefits = [
+  'Punto de venta, productos y categorías.',
+  'Mesas, cocina, caja e impresión de tickets.',
+  'Inventario, promociones, reportes y cortes.',
+  'Soporte para la configuración del negocio.',
+]
 
 export default async function VencidoPage({ params }: Props) {
   const { slug } = await params
@@ -20,81 +27,43 @@ export default async function VencidoPage({ params }: Props) {
   const rawName = headersList.get('x-business-name')
   const businessName = rawName ? decodeURIComponent(rawName) : slug
   const rawLogo = headersList.get('x-logo-url')
-  const logoUrl = rawLogo ? decodeURIComponent(rawLogo) : undefined
+  const logoUrl = rawLogo ? decodeURIComponent(rawLogo) || undefined : undefined
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-xl overflow-hidden p-8 text-center border border-gray-100">
-        {logoUrl ? (
-          <img src={logoUrl} alt={businessName} className="h-16 mx-auto mb-6 object-contain" />
-        ) : (
-          <div className="text-5xl mb-3">🔒</div>
-        )}
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">{businessName}</h1>
-          <p className="text-sm opacity-80 mb-6">Sistema Punto de Venta</p>
-        
-
-        {/* Body */}
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-[var(--color-negro)] mb-3">
-            Tu periodo de prueba ha finalizado
-          </h2>
-          <p className="text-[var(--color-gris)] mb-8 leading-relaxed">
-            Gracias por probar nuestro POS. Para seguir usando todas las funciones sin interrupciones,
-            activa tu licencia completa.
-          </p>
-
-          {/* Beneficios */}
-          <ul className="text-left space-y-3 mb-8 text-sm text-[var(--color-negro)]">
-            {[
-              'Acceso ilimitado para todo tu equipo',
-              'Soporte personalizado por WhatsApp',
-              'Actualizaciones continuas incluidas',
-              'Configuración de impresora térmica',
-              'Reportes y cortes de caja completos',
-            ].map(b => (
-              <li key={b} className="flex items-center gap-3">
-                <span className="text-[var(--color-bronce)] font-bold text-lg">✓</span>
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
-
-          {/* CTA — Opciones de Pago Stripe */}
-          <div className="space-y-4">
-            <a
-              href={`/api/stripe/checkout?slug=${slug}&plan=mensual`}
-              className="block w-full bg-[var(--color-bronce)] text-[var(--color-crema)] text-center font-bold uppercase tracking-widest py-4 rounded-xl hover:bg-[var(--color-negro)] transition-colors text-sm shadow-md"
-            >
-              Mensualidad — $500 MXN/mes
-            </a>
-            
-            <a
-              href={`/api/stripe/checkout?slug=${slug}&plan=unico`}
-              className="block w-full bg-white text-[var(--color-bronce)] border-2 border-[var(--color-bronce)] text-center font-bold uppercase tracking-widest py-4 rounded-xl hover:bg-[var(--color-bronce)] hover:text-white transition-colors text-sm shadow-sm"
-            >
-              Pago único — $5,000 MXN (sin mensualidades)
-            </a>
+    <CommerceShell>
+      <main className="pt-10 sm:pt-14">
+        <section className="mx-auto max-w-3xl text-center" aria-labelledby="expired-heading">
+          <TenantIdentity businessName={businessName} logoUrl={logoUrl} />
+          <div className="mx-auto mt-7 inline-flex items-center gap-2 rounded-full border border-amber-700/20 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900">
+            <CheckCircle2 size={17} /> Tu configuración sigue disponible
           </div>
+          <h1 id="expired-heading" className="mt-5 text-3xl font-black tracking-[-.04em] text-stone-950 sm:text-5xl">Tu prueba gratuita ha finalizado</h1>
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg">Elige la modalidad que mejor se adapte a tu negocio para recuperar el acceso. No eliminamos tus datos ni tu configuración al finalizar la prueba.</p>
+        </section>
 
-          <p className="text-xs text-[var(--color-gris)] mt-4">
-            ¿Preguntas? Escríbenos a{' '}
-            <a
-              href="mailto:innovanetwork15@gmail.com"
-              className="text-[var(--color-bronce)] font-semibold hover:underline"
-            >
-              innovanetwork15@gmail.com
-            </a>{' '}
-            o llámanos al{' '}
-            <a
-              href="tel:+34624065434"
-              className="text-[var(--color-bronce)] font-semibold hover:underline"
-            >
-              +34 624 06 54 34
-            </a>
-          </p>
-        </div>
-      </div>
-    </div>
+        <section className="mt-10 sm:mt-14" aria-label="Comparación de licencias">
+          <PaymentPlans slug={slug} />
+        </section>
+
+        <section className="mt-8 grid gap-5 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-7 lg:grid-cols-[1.35fr_.65fr]">
+          <div>
+            <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-stone-100 text-stone-800"><Database size={20} /></span><h2 className="text-xl font-black text-stone-950">Continúa donde te quedaste</h2></div>
+            <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+              {realBenefits.map((benefit) => <li key={benefit} className="flex gap-2 text-sm leading-6 text-stone-700"><CheckCircle2 size={17} className="mt-1 shrink-0 text-emerald-700" />{benefit}</li>)}
+            </ul>
+          </div>
+          <div className="rounded-2xl bg-stone-900 p-5 text-white">
+            <Headphones size={23} className="text-amber-300" />
+            <h2 className="mt-4 text-lg font-black">¿Quieres que te ayudemos?</h2>
+            <p className="mt-2 text-sm leading-6 text-stone-300">Innova Network puede orientarte antes de elegir una licencia.</p>
+            <div className="mt-4 space-y-2 text-sm">
+              <a href="mailto:innovanetwork15@gmail.com" className="flex min-h-11 items-center font-bold text-amber-300 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-amber-300">innovanetwork15@gmail.com</a>
+              <a href="https://wa.me/34624065434" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 font-bold text-white underline decoration-white/30 underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-white"><MessageCircle size={17} /> +34 624 06 54 34</a>
+            </div>
+          </div>
+        </section>
+        <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-stone-500"><ShieldCheck size={15} /> Stripe procesa el pago de forma segura. Innova Network no recibe los datos completos de tu tarjeta.</p>
+      </main>
+    </CommerceShell>
   )
 }

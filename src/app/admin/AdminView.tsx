@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { getCroppedImg } from '@/utils/cropImage'
+import { getCroppedImg, type LogoCropShape, type PixelCrop } from '@/utils/cropImage'
 import { createEmployee, updateEmployee, deleteEmployee } from './actions'
 import { updatePaymentMethod } from '@/app/caja/actions'
 import { detectarImpresoras, buildTicketHtml } from '@/utils/printTicket'
@@ -16,7 +16,8 @@ import { AndroidPrinterPanel } from '@/components/AndroidPrinterPanel'
 import { AndroidBluetoothPrinterPanel } from '@/components/AndroidBluetoothPrinterPanel'
 import { 
   LayoutDashboard, Coffee, Users, Table2, ArrowRightLeft,
-  Plus, Edit, Trash2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, Download, RefreshCw, X, Loader2, MoreHorizontal
+  Plus, Edit, Trash2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, Download, RefreshCw, X, Loader2, MoreHorizontal,
+  Circle, RectangleHorizontal, RotateCcw, Square
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
@@ -40,6 +41,33 @@ const TABS = [
   { id: 'configuracion', label: 'Configuración', icon: Edit },
 ]
 
+const LOGO_CROP_OPTIONS = [
+  {
+    id: 'rectangle' as const,
+    label: 'Rectángulo',
+    description: 'Ideal para logos horizontales',
+    aspect: 3 / 1,
+    cropShape: 'rect' as const,
+    icon: RectangleHorizontal,
+  },
+  {
+    id: 'square' as const,
+    label: 'Cuadrado',
+    description: 'Ideal para emblemas',
+    aspect: 1,
+    cropShape: 'rect' as const,
+    icon: Square,
+  },
+  {
+    id: 'circle' as const,
+    label: 'Círculo',
+    description: 'Ideal para sellos redondos',
+    aspect: 1,
+    cropShape: 'round' as const,
+    icon: Circle,
+  },
+]
+
 const formatOrderType = (t: string) => {
   if (t === 'mesa') return 'En Mesa'
   if (t === 'para_llevar') return 'Para Llevar'
@@ -59,6 +87,8 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
   const [movements, setMovements] = useState<any[]>([])
   const [payments, setPayments] = useState<any[]>([])
   const [settings, setSettings] = useState<any>(null)
+  const [currentTenantId, setCurrentTenantId] = useState<string | null>(null)
+  const [brandLogoUrl, setBrandLogoUrl] = useState('')
   const [categories, setCategories] = useState<any[]>([])
   const [topProductSort, setTopProductSort] = useState<'cantidad' | 'ingreso'>('cantidad')
   
@@ -95,7 +125,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
     mensaje: '¡Gracias por su compra! Vuelva pronto.',
     atendido: true,
     logo: true,
-    negocioNombre: 'Abaroa Caf\u00e9ter\u00eda',
+    negocioNombre: 'Mi Cafetería',
     negocioDireccion: '',
     negocioTelefono: '',
     negocioRfc: '',
@@ -109,7 +139,9 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
   const [imageToCrop, setImageToCrop] = useState<string | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+  const [cropShape, setCropShape] = useState<LogoCropShape>('rectangle')
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<PixelCrop | null>(null)
+  const activeCropOption = LOGO_CROP_OPTIONS.find(option => option.id === cropShape) ?? LOGO_CROP_OPTIONS[0]
 
   // Cortes de caja
   const [cortes, setCortes] = useState<any[]>([])
@@ -270,8 +302,10 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
       let mergedSettings = { ...sRes.data }
       const { data: currentEmpRow } = await supabase.from('employees').select('tenant_id').eq('id', user?.id ?? '').single()
       if (currentEmpRow?.tenant_id) {
-        const { data: tenantRow } = await supabase.from('tenants').select('nombre_negocio, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url').eq('id', currentEmpRow.tenant_id).single()
+        const { data: tenantRow } = await supabase.from('tenants').select('nombre_negocio, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url, ticket_logo_url').eq('id', currentEmpRow.tenant_id).single()
         if (tenantRow) {
+          setCurrentTenantId(currentEmpRow.tenant_id)
+          setBrandLogoUrl(tenantRow.logo_marca_url ?? '')
           mergedSettings = {
             ...mergedSettings,
             negocio_nombre: tenantRow.nombre_negocio ?? mergedSettings.negocio_nombre,
@@ -280,8 +314,13 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
             theme_color_terciario: tenantRow.theme_color_terciario ?? mergedSettings.theme_color_terciario,
             theme_color_texto: tenantRow.theme_color_texto ?? mergedSettings.theme_color_texto,
             logo_marca_url: tenantRow.logo_marca_url ?? mergedSettings.logo_marca_url,
+            // El logo del ticket pertenece al tenant. Nunca heredar el logo global de otro negocio.
+            ticket_logo_url: tenantRow.ticket_logo_url ?? tenantRow.logo_marca_url ?? null,
           }
         }
+      } else {
+        setCurrentTenantId(null)
+        setBrandLogoUrl(mergedSettings.logo_marca_url ?? '')
       }
       setSettings(mergedSettings)
       setPrinterMode(mergedSettings.impresora_modo || 'red')
@@ -295,7 +334,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
         negocioTelefono: mergedSettings.negocio_telefono ?? '',
         negocioRfc: mergedSettings.negocio_rfc ?? '',
         lineaExtra: mergedSettings.ticket_linea_extra ?? '',
-        logoUrl: mergedSettings.ticket_logo_url ?? ''
+        logoUrl: mergedSettings.ticket_logo_url ?? mergedSettings.logo_marca_url ?? ''
       })
     }
     if (cRes.data) setCategories(cRes.data)
@@ -310,7 +349,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
 
     // Metrics (Filtered by selectedDate)
     let paysQuery = supabase.from('payments')
-      .select('*, order:orders(*, tables(numero), order_items(*, product:products(nombre), extra:product_extras!extra_id(nombre), order_item_extras(nombre_extra, precio_adicional))), cobrador:employees!cobrado_por(nombre)')
+      .select('*, order:orders(*, tables(numero), order_items(*, product:products(nombre), extra:product_extras!extra_id(nombre), order_item_extras(extra_id, nombre_extra, precio_adicional))), cobrador:employees!cobrado_por(nombre)')
       .gte('creado_en', startStr)
       .lte('creado_en', endStr)
       .order('creado_en', { ascending: false })
@@ -444,7 +483,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
     if (activeTab !== 'ventas') return
     const loadVentasData = async () => {
       let paysQuery = supabase.from('payments')
-        .select('*, order:orders(*, tables(numero), order_items(*, product:products(nombre), extra:product_extras!extra_id(nombre), order_item_extras(nombre_extra, precio_adicional))), cobrador:employees!cobrado_por(nombre)')
+        .select('*, order:orders(*, tables(numero), order_items(*, product:products(nombre), extra:product_extras!extra_id(nombre), order_item_extras(extra_id, nombre_extra, precio_adicional))), cobrador:employees!cobrado_por(nombre)')
         .gte('creado_en', vStartDate.toISOString())
         .lte('creado_en', vEndDate.toISOString())
         .order('creado_en', { ascending: false })
@@ -600,7 +639,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Transacciones")
-    XLSX.writeFile(wb, `Reporte_Financiero_Abaroa_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`)
+    XLSX.writeFile(wb, `Reporte_Financiero_InnovaCoffeePOS_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`)
   }
 
   /** Export only the currently selected month's data (including archived) for backup before deletion. */
@@ -647,7 +686,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
     const XLSX = await import('xlsx')
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(all), 'Transacciones')
-    XLSX.writeFile(wb, `Respaldo_${monthLabel}_Abaroa_${format(new Date(), 'yyyyMMdd')}.xlsx`)
+    XLSX.writeFile(wb, `Respaldo_${monthLabel}_InnovaCoffeePOS_${format(new Date(), 'yyyyMMdd')}.xlsx`)
 
     setExportedMonth(true)
   }
@@ -784,7 +823,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
       const tData = allTables?.map(t => ({ ID: t.id, Numero: t.numero, Estado: t.estado })) || []
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tData), "Mesas")
 
-      XLSX.writeFile(wb, `Respaldo_Completo_Abaroa_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`)
+      XLSX.writeFile(wb, `Respaldo_Completo_InnovaCoffeePOS_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`)
     } catch (e: any) {
       alert('Error generando respaldo: ' + e.message)
     }
@@ -1069,16 +1108,36 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
     }
   }
 
-  const onCropComplete = useCallback((croppedArea: any, croppedAreaPixels: any) => {
+  const onCropComplete = useCallback((_croppedArea: PixelCrop, croppedAreaPixels: PixelCrop) => {
     setCroppedAreaPixels(croppedAreaPixels)
   }, [])
+
+  const resetCropControls = (shape: LogoCropShape = 'rectangle') => {
+    setCropShape(shape)
+    setCrop({ x: 0, y: 0 })
+    setZoom(1)
+    setCroppedAreaPixels(null)
+  }
+
+  const openCropEditor = (url: string) => {
+    if (imageToCrop?.startsWith('blob:')) URL.revokeObjectURL(imageToCrop)
+    setImageToCrop(url)
+    resetCropControls()
+    setCropModalOpen(true)
+  }
+
+  const handleCloseCropModal = () => {
+    setCropModalOpen(false)
+    if (imageToCrop?.startsWith('blob:')) URL.revokeObjectURL(imageToCrop)
+    setImageToCrop(null)
+    setCroppedAreaPixels(null)
+  }
 
   const handleSelectLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const url = URL.createObjectURL(file)
-    setImageToCrop(url)
-    setCropModalOpen(true)
+    openCropEditor(url)
     // reset input
     e.target.value = ''
   }
@@ -1089,10 +1148,10 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
       setLogoUploading(true)
       // fetch as blob to avoid cors tainting
       const res = await fetch(ticketPreview.logoUrl)
+      if (!res.ok) throw new Error('No se pudo descargar el logotipo')
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
-      setImageToCrop(url)
-      setCropModalOpen(true)
+      openCropEditor(url)
     } catch (e) {
       alert("No se pudo cargar la imagen para editar.")
     } finally {
@@ -1102,16 +1161,18 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
 
   const handleConfirmCrop = async () => {
     if (!imageToCrop || !croppedAreaPixels) return
+    const sourceImage = imageToCrop
+    const selectedShape = cropShape
     setCropModalOpen(false)
     setLogoUploading(true)
     try {
-      const croppedBlob = await getCroppedImg(imageToCrop, croppedAreaPixels)
+      const croppedBlob = await getCroppedImg(sourceImage, croppedAreaPixels, selectedShape)
       const file = new File([croppedBlob], "cropped.jpg", { type: "image/jpeg" })
 
       const { default: imageCompression } = await import('browser-image-compression')
       const compressed = await imageCompression(file, {
         maxSizeMB: 0.5,
-        maxWidthOrHeight: 600,
+        maxWidthOrHeight: selectedShape === 'rectangle' ? 360 : 220,
         useWebWorker: true,
         fileType: 'image/webp'
       })
@@ -1120,20 +1181,35 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
       if (upError) throw upError
       const { data: { publicUrl } } = supabase.storage.from('productos').getPublicUrl(fileName)
       
+      // Guardar el logo en el negocio actual para evitar que se comparta entre tenants.
+      const { error: saveLogoError } = currentTenantId
+        ? await supabase.from('tenants').update({ ticket_logo_url: publicUrl }).eq('id', currentTenantId)
+        : await supabase.from('settings').update({ ticket_logo_url: publicUrl }).eq('id', 1)
+      if (saveLogoError) throw saveLogoError
+
       setTicketPreview(p => ({ ...p, logoUrl: publicUrl }))
-      // Save immediately to DB
-      await supabase.from('settings').update({ ticket_logo_url: publicUrl }).eq('id', 1)
       alert('Logo actualizado correctamente')
     } catch (err: any) {
       alert('Error subiendo logo recortado: ' + err.message)
     } finally {
       setLogoUploading(false)
+      if (sourceImage.startsWith('blob:')) URL.revokeObjectURL(sourceImage)
+      setImageToCrop(null)
+      setCroppedAreaPixels(null)
     }
   }
 
   const handleRestoreDefaultLogo = async () => {
-    await supabase.from('settings').update({ ticket_logo_url: null }).eq('id', 1)
-    setTicketPreview(p => ({ ...p, logoUrl: '' }))
+    const { error } = currentTenantId
+      ? await supabase.from('tenants').update({ ticket_logo_url: null }).eq('id', currentTenantId)
+      : await supabase.from('settings').update({ ticket_logo_url: null }).eq('id', 1)
+
+    if (error) {
+      alert('No se pudo restaurar el logo: ' + error.message)
+      return
+    }
+
+    setTicketPreview(p => ({ ...p, logoUrl: brandLogoUrl }))
   }
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -1157,10 +1233,12 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
       meta_diaria: parseFloat(formData.get('meta_diaria') as string) || 0,
       meta_semanal: parseFloat(formData.get('meta_semanal') as string) || 0,
       meta_mensual: parseFloat(formData.get('meta_mensual') as string) || 0,
-      theme_color_primario: formData.get('theme_color_primario'),
-      theme_color_secundario: formData.get('theme_color_secundario'),
-      theme_color_terciario: formData.get('theme_color_terciario'),
-      theme_color_texto: formData.get('theme_color_texto'),
+      // Este formulario administra operación, impresión y ticket. Los colores
+      // no tienen controles aquí, por lo que deben conservarse tal como están.
+      theme_color_primario: settings?.theme_color_primario ?? null,
+      theme_color_secundario: settings?.theme_color_secundario ?? null,
+      theme_color_terciario: settings?.theme_color_terciario ?? null,
+      theme_color_texto: settings?.theme_color_texto ?? null,
       logo_marca_url: settings?.logo_marca_url ?? null
     }
 
@@ -1171,10 +1249,8 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
         // Tenant
         const tenantData = {
           nombre_negocio: sData.negocio_nombre,
-          theme_color_primario: sData.theme_color_primario,
-          theme_color_secundario: sData.theme_color_secundario,
-          theme_color_terciario: sData.theme_color_terciario,
-          theme_color_texto: sData.theme_color_texto,
+          // El tema se define durante el registro y no debe alterarse al
+          // guardar opciones de impresora o personalización del ticket.
           logo_marca_url: sData.logo_marca_url
         }
         const { error: tError } = await supabase.from('tenants').update(tenantData).eq('id', emp.tenant_id)
@@ -1230,7 +1306,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={`flex items-center gap-3 px-6 py-4 font-bold tracking-wider uppercase text-sm transition-colors ${
-                isActive ? 'bg-[var(--color-bronce)] text-white' : 'text-[var(--color-gris)] hover:bg-[var(--color-bronce)]/10 hover:text-[var(--color-bronce)]'
+                isActive ? 'bg-[var(--color-bronce)] text-[var(--color-en-bronce)]' : 'text-[var(--color-en-crema)] opacity-70 hover:bg-[var(--color-bronce)]/10 hover:text-[var(--color-en-crema)] hover:opacity-100'
               }`}
             >
               <Icon size={18} /> {t.label}
@@ -1284,7 +1360,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="border-[var(--color-bronce)] text-[var(--color-bronce)] hover:bg-[var(--color-crema)] hover:text-[var(--color-bronce)] font-semibold disabled:opacity-50"
+                    className="border-[var(--color-bronce)] text-[var(--color-bronce)] hover:bg-[var(--color-crema)] hover:text-[var(--color-bronce)] font-semibold disabled:cursor-not-allowed disabled:border-amber-300 disabled:bg-amber-50 disabled:text-amber-800 disabled:opacity-100"
                     onClick={handleArchivarMes}
                     disabled={archivandoMes || endOfMonth(currentDate) >= new Date()}
                     title={endOfMonth(currentDate) >= new Date() ? "No se puede archivar un mes que aún no ha terminado." : ""}
@@ -1696,7 +1772,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-[var(--color-crema)]/50 text-[var(--color-gris)] uppercase text-xs">
+                <thead className="bg-slate-100 text-slate-600 uppercase text-xs">
                   <tr>
                     <th className="p-3 rounded-tl-lg">Producto</th>
                     <th className="p-3">Cantidad</th>
@@ -1727,7 +1803,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
             <h3 className="font-bold text-lg text-[var(--color-bronce)] mb-4">Rendimiento de Empleados</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-[var(--color-crema)]/50 text-[var(--color-gris)] uppercase text-xs">
+                <thead className="bg-slate-100 text-slate-600 uppercase text-xs">
                   <tr>
                     <th className="p-3 rounded-tl-lg">Empleado</th>
                     <th className="p-3">Rol</th>
@@ -1756,7 +1832,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
             <div className="bg-white rounded-xl border border-[var(--color-gris)]/20 shadow-sm overflow-hidden flex flex-col">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm min-w-[800px]">
-                <thead className="bg-[var(--color-crema)] text-[var(--color-gris)] uppercase tracking-wider text-xs">
+                <thead className="bg-[var(--color-crema)] text-[var(--color-en-crema)] uppercase tracking-wider text-xs">
                   <tr>
                     <th className="p-4">Fecha</th>
                     <th className="p-4">Concepto</th>
@@ -1962,7 +2038,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
             <div className="bg-white rounded-xl border border-[var(--color-gris)]/20 shadow-sm overflow-hidden flex flex-col">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-[var(--color-crema)] text-[var(--color-gris)] uppercase tracking-wider text-xs">
+                  <thead className="bg-[var(--color-crema)] text-[var(--color-en-crema)] uppercase tracking-wider text-xs">
                     <tr>
                       <th className="p-4">Fecha/Hora</th>
                       <th className="p-4">Pedido</th>
@@ -2089,7 +2165,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                       <Image src={p.foto_url} alt={p.nombre} fill sizes="(max-width: 768px) 50vw, 300px" className="object-cover" />
                     </div>
                   ) : (
-                    <div className="w-full h-32 md:h-48 bg-[var(--color-crema)] flex items-center justify-center text-[var(--color-gris)] text-xs">Sin Foto</div>
+                    <div className="w-full h-32 md:h-48 bg-[var(--color-crema)] flex items-center justify-center text-[var(--color-en-crema)] text-xs">Sin Foto</div>
                   )}
                   <div className="p-3 md:p-4 flex flex-col flex-1">
                     <div className="flex gap-2 items-center mb-1">
@@ -2160,7 +2236,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
             <div className="bg-white rounded-xl border border-[var(--color-gris)]/20 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm min-w-[600px]">
-                <thead className="bg-[var(--color-crema)] text-[var(--color-gris)] uppercase tracking-wider text-xs">
+                <thead className="bg-[var(--color-crema)] text-[var(--color-en-crema)] uppercase tracking-wider text-xs">
                   <tr>
                     <th className="p-4">Nombre</th>
                     <th className="p-4">Rol</th>
@@ -2280,7 +2356,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
               <div className="bg-white rounded-xl border border-[var(--color-gris)]/20 shadow-sm overflow-hidden flex flex-col">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm min-w-[700px]">
-                  <thead className="bg-[var(--color-crema)] text-[var(--color-gris)] uppercase tracking-wider text-xs">
+                  <thead className="bg-[var(--color-crema)] text-[var(--color-en-crema)] uppercase tracking-wider text-xs">
                     <tr>
                       <th className="p-4">Fecha</th>
                       <th className="p-4">Concepto</th>
@@ -2442,7 +2518,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                 <div className="bg-white rounded-xl border border-[var(--color-gris)]/20 shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm min-w-[600px]">
-                    <thead className="bg-[var(--color-crema)] text-[var(--color-gris)] uppercase tracking-wider text-xs">
+                    <thead className="bg-[var(--color-crema)] text-[var(--color-en-crema)] uppercase tracking-wider text-xs">
                       <tr>
                         <th className="p-4">Fecha</th>
                         <th className="p-4">Cajero</th>
@@ -2515,8 +2591,8 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                   onChange={event => setPrinterMode(event.target.value)}
                   className="w-full h-12 rounded-md border border-[var(--color-gris)] px-3 bg-white"
                 >
-                  <option value="android_usb">USB Android — APK Abaroa POS (automático)</option>
-                  <option value="android_bluetooth">Bluetooth Android — APK Abaroa POS (automático)</option>
+                  <option value="android_usb">USB Android — APK Innova Coffee POS (automático)</option>
+                  <option value="android_bluetooth">Bluetooth Android — APK Innova Coffee POS (automático)</option>
                   <option value="usb_qz">USB Windows vía QZ Tray (automático)</option>
                   <option value="red">Red WiFi / Ethernet</option>
                   <option value="bluetooth">Bluetooth / impresión manual del sistema</option>
@@ -2587,7 +2663,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
 
                 {printerMode === 'bluetooth' && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                    Este modo abre la impresión manual del sistema. Para tickets automáticos desde las Lenovo, utiliza “USB Android — APK Abaroa POS”.
+                    Este modo abre la impresión manual del sistema. Para tickets automáticos desde las Lenovo, utiliza “USB Android — APK Innova Coffee POS”.
                   </div>
                 )}
               </div>
@@ -2605,7 +2681,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                     <Input type="text" name="negocio_nombre"
                       value={ticketPreview.negocioNombre}
                       onChange={(e: any) => setTicketPreview(p => ({ ...p, negocioNombre: e.target.value }))}
-                      placeholder="Abaroa Cafétería"
+                      placeholder="Mi Cafetería"
                     />
                   </div>
                   <div>
@@ -2640,7 +2716,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                     <Input type="text" name="ticket_linea_extra"
                       value={ticketPreview.lineaExtra}
                       onChange={(e: any) => setTicketPreview(p => ({ ...p, lineaExtra: e.target.value }))}
-                      placeholder="Ej: @AbaroaBakery | Lun-Sab 8am-8pm"
+                      placeholder="Ej: @MiCafeteria | Lun-Sab 8am-8pm"
                     />
                   </div>
 
@@ -2649,13 +2725,19 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                     <label className="block text-xs uppercase font-bold text-[var(--color-gris)] mb-2">Logotipo del Ticket</label>
                     <div className="flex items-center gap-4 mb-3">
                       <div className="relative h-16 w-32 border border-gray-200 rounded bg-white p-1">
-                        <Image
-                          src={ticketPreview.logoUrl || '/ABAROA_letras_negras_sin_fondo.png'}
-                          alt="Logo actual"
-                          fill
-                          className="object-contain"
-                          sizes="128px"
-                        />
+                        {ticketPreview.logoUrl ? (
+                          <Image
+                            src={ticketPreview.logoUrl}
+                            alt="Logo actual"
+                            fill
+                            className="object-contain"
+                            sizes="128px"
+                          />
+                        ) : (
+                          <span className="grid h-full place-items-center text-[var(--color-bronce)]" aria-label="Sin logo personalizado">
+                            <Coffee size={28} aria-hidden="true" />
+                          </span>
+                        )}
                       </div>
                       <div className="space-y-2 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -2674,13 +2756,13 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                             </button>
                           )}
                         </div>
-                        {ticketPreview.logoUrl && (
+                        {ticketPreview.logoUrl && ticketPreview.logoUrl !== brandLogoUrl && (
                           <button type="button" onClick={handleRestoreDefaultLogo}
                             className="text-xs text-[var(--color-gris)] hover:text-red-600 underline block mt-2">
-                            Restaurar logo original de Abaroa
+                            {currentTenantId ? 'Usar logo original del negocio' : 'Usar logo predeterminado'}
                           </button>
                         )}
-                        <p className="text-[10px] text-gray-400">La vista previa muestra el logo a color. En impresora t\u00e9rmica se convierte a blanco y negro autom\u00e1ticamente.</p>
+                        <p className="text-[10px] text-slate-600">La vista previa muestra el logo a color. En impresora térmica se convierte a blanco y negro automáticamente.</p>
                       </div>
                     </div>
                   </div>
@@ -2696,7 +2778,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                             key={size}
                             type="button"
                             onClick={() => setTicketPreview(p => ({ ...p, tamano: size }))}
-                            className={`flex-1 py-2 text-sm rounded border capitalize ${ticketPreview.tamano === size ? 'bg-[var(--color-bronce)] text-white border-[var(--color-bronce)]' : 'bg-white text-[var(--color-gris)] border-[var(--color-gris)]/30 hover:bg-gray-50'}`}
+                            className={`flex-1 py-2 text-sm rounded border capitalize ${ticketPreview.tamano === size ? 'bg-[var(--color-bronce)] text-[var(--color-en-bronce)] border-[var(--color-bronce)]' : 'bg-white text-[var(--color-gris)] border-[var(--color-gris)]/30 hover:bg-gray-50'}`}
                           >
                             {size === 'pequena' ? 'Pequeña' : size === 'normal' ? 'Normal' : 'Grande'}
                           </button>
@@ -2745,10 +2827,10 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                   <div className="bg-gray-100 p-4 rounded-xl flex items-center justify-center">
                     <div className="bg-white shadow-lg p-4 w-full max-w-[260px] text-black" style={{ fontFamily: 'monospace' }}>
                       <div className="flex flex-col items-center border-b-2 border-dashed border-gray-300 pb-3 mb-3">
-                        {ticketPreview.logo && (
+                        {ticketPreview.logo && ticketPreview.logoUrl && (
                           <div className="relative h-12 w-24 mb-2">
                             <Image
-                              src={ticketPreview.logoUrl || '/ABAROA_letras_negras_sin_fondo.png'}
+                              src={ticketPreview.logoUrl}
                               alt="Logo"
                               fill
                               className="object-contain"
@@ -2756,7 +2838,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                             />
                           </div>
                         )}
-                        <h1 className="text-sm font-bold text-center uppercase">{ticketPreview.negocioNombre ?? 'Abaroa Cafétería'}</h1>
+                        <h1 className="text-sm font-bold text-center uppercase">{ticketPreview.negocioNombre ?? 'Mi Cafetería'}</h1>
                         {ticketPreview.negocioDireccion && <p className="text-[10px] text-center">{ticketPreview.negocioDireccion}</p>}
                         {ticketPreview.negocioTelefono && <p className="text-[10px] text-center">Tel: {ticketPreview.negocioTelefono}</p>}
                         {ticketPreview.negocioRfc && <p className="text-[10px] text-center">RFC: {ticketPreview.negocioRfc}</p>}
@@ -2843,15 +2925,44 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
       </Modal>
 
       {/* --- CROP MODAL --- */}
-      <Modal isOpen={cropModalOpen} onClose={() => setCropModalOpen(false)} title="Recortar y Posicionar Logotipo">
-        <p className="text-xs text-gray-500 mb-2">Puedes hacer la imagen m\u00e1s peque\u00f1a que el marco y moverla hacia un lado para alinear el logo a la izquierda o derecha en el ticket.</p>
-        <div className="relative w-full h-64 bg-gray-200 border border-gray-300 rounded-md overflow-hidden mb-4">
+      <Modal isOpen={cropModalOpen} onClose={handleCloseCropModal} title="Recortar y Posicionar Logotipo">
+        <p className="mb-4 text-sm leading-5 text-slate-600">
+          Elige la forma que mejor se adapte al logo. Después arrástralo y ajusta el zoom; el archivo se preparará automáticamente para imprimirse sin deformaciones.
+        </p>
+
+        <div role="radiogroup" aria-label="Forma del recorte" className="mb-4 grid grid-cols-3 gap-2">
+          {LOGO_CROP_OPTIONS.map(option => {
+            const ShapeIcon = option.icon
+            const selected = cropShape === option.id
+            return (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => resetCropControls(option.id)}
+                className={`flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border-2 px-2 py-3 text-center outline-none transition-[background-color,border-color,color,box-shadow] focus-visible:ring-2 focus-visible:ring-[var(--color-bronce)] focus-visible:ring-offset-2 ${
+                  selected
+                    ? 'border-[var(--color-bronce)] bg-amber-50 text-slate-950 shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50'
+                }`}
+              >
+                <ShapeIcon size={22} strokeWidth={1.8} aria-hidden="true" />
+                <span className="text-xs font-bold">{option.label}</span>
+                <span className="hidden text-[10px] leading-3 text-slate-500 sm:block">{option.description}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="relative mb-4 h-64 w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-200" aria-label={`Editor de recorte ${activeCropOption.label.toLowerCase()}`}>
           {imageToCrop && (
             <Cropper
               image={imageToCrop}
               crop={crop}
               zoom={zoom}
-              aspect={3 / 1}
+              aspect={activeCropOption.aspect}
+              cropShape={activeCropOption.cropShape}
               onCropChange={setCrop}
               onCropComplete={onCropComplete}
               onZoomChange={setZoom}
@@ -2860,22 +2971,43 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
             />
           )}
         </div>
-        <div className="px-2 mb-6">
-          <label className="block text-xs uppercase font-bold text-gray-500 mb-2">Zoom</label>
+
+        <div className="mb-6 px-1">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <label htmlFor="ticket-logo-zoom" className="text-xs font-bold uppercase text-slate-600">Zoom</label>
+            <button
+              type="button"
+              onClick={() => {
+                setCrop({ x: 0, y: 0 })
+                setZoom(1)
+              }}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-slate-600 outline-none transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-[var(--color-bronce)]"
+            >
+              <RotateCcw size={15} aria-hidden="true" /> Restablecer
+            </button>
+          </div>
           <input
+            id="ticket-logo-zoom"
             type="range"
             value={zoom}
             min={0.2}
             max={3}
             step={0.1}
-            aria-labelledby="Zoom"
+            aria-valuetext={`${Math.round(zoom * 100)} por ciento`}
             onChange={(e) => setZoom(Number(e.target.value))}
-            className="w-full"
+            className="h-11 w-full cursor-pointer accent-[var(--color-bronce)]"
           />
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            {cropShape === 'circle'
+              ? 'Las esquinas se guardarán en blanco para evitar manchas negras en el ticket.'
+              : 'Puedes dejar espacio alrededor del logo y moverlo libremente dentro del marco.'}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setCropModalOpen(false)} className="flex-1">Cancelar</Button>
-          <Button variant="primary" onClick={handleConfirmCrop} className="flex-1">Aplicar y Subir</Button>
+          <Button type="button" variant="outline" onClick={handleCloseCropModal} className="flex-1">Cancelar</Button>
+          <Button type="button" variant="primary" onClick={handleConfirmCrop} disabled={!croppedAreaPixels || logoUploading} className="flex-1">
+            Aplicar y subir
+          </Button>
         </div>
       </Modal>
 
@@ -2961,7 +3093,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
           {/* ── Control de inventario ───────────────────────────────── */}
           <div className="border border-[var(--color-gris)]/20 rounded-xl p-4 bg-gray-50 space-y-3">
             <p className="text-xs font-bold text-[var(--color-gris)] uppercase tracking-wider">📦 Control de inventario
-              <span className="ml-1 font-normal normal-case text-[var(--color-gris)]/70">(opcional)</span>
+              <span className="ml-1 font-normal normal-case text-[var(--color-gris)]">(opcional)</span>
             </p>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -3101,7 +3233,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                     type="button"
                     onClick={handleAddExtra}
                     disabled={addingExtra || !newExtraName.trim()}
-                    className="w-full h-9 rounded-md bg-[var(--color-bronce)] text-white text-sm font-bold tracking-wide disabled:opacity-50 hover:bg-opacity-90 transition-colors"
+                    className="w-full h-9 rounded-md bg-[var(--color-bronce)] text-[var(--color-en-bronce)] text-sm font-bold tracking-wide disabled:opacity-60 hover:brightness-90 transition-[filter,opacity]"
                   >
                     {addingExtra ? 'Agregando...' : <span className="flex items-center justify-center gap-2"><Plus size={16} /> Agregar extra</span>}
                   </button>
@@ -3168,7 +3300,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                         autoFocus
                       />
                       <button
-                        className="text-xs font-bold text-white bg-[var(--color-bronce)] px-3 py-1 rounded-md disabled:opacity-50"
+                        className="text-xs font-bold text-[var(--color-en-bronce)] bg-[var(--color-bronce)] px-3 py-1 rounded-md disabled:opacity-60"
                         disabled={savingCategory}
                         onClick={async () => {
                           setSavingCategory(true)

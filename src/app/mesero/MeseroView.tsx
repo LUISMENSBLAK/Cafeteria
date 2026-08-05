@@ -136,12 +136,12 @@ export default function MeseroView({
     const [activeRes, historialRes] = await Promise.all([
       supabase
         .from('orders')
-        .select('*, order_items(*, product:products(*), extra:product_extras!extra_id(nombre), order_item_extras(nombre_extra, precio_adicional), creador:employees!order_items_creado_por_fkey(nombre, rol))')
+        .select('*, order_items(*, product:products(*), extra:product_extras!extra_id(nombre), order_item_extras(extra_id, nombre_extra, precio_adicional), creador:employees!order_items_creado_por_fkey(nombre, rol))')
         .eq('estado', 'abierto')
         .order('creado_en', { ascending: false }),
       supabase
         .from('orders')
-        .select('*, order_items(*, product:products(*), extra:product_extras!extra_id(nombre), order_item_extras(nombre_extra, precio_adicional), creador:employees!order_items_creado_por_fkey(nombre, rol))')
+        .select('*, order_items(*, product:products(*), extra:product_extras!extra_id(nombre), order_item_extras(extra_id, nombre_extra, precio_adicional), creador:employees!order_items_creado_por_fkey(nombre, rol))')
         .eq('estado', 'cerrado')
         .gte('creado_en', today.toISOString())
         .order('creado_en', { ascending: false }),

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { activeTenantActionGate } from '@/lib/billing/server'
 import { revalidatePath } from 'next/cache'
 
 export async function processPayment({
@@ -22,6 +23,8 @@ export async function processPayment({
   cambio: number
   employeeId: string
 }) {
+  const gate = await activeTenantActionGate()
+  if (!gate.ok) return gate.result
   const supabase = await createClient()
 
   const { error: payError } = await supabase.rpc('procesar_pago', {
@@ -52,6 +55,8 @@ export async function addExpense({
   metodo: 'efectivo' | 'tarjeta'
   employeeId: string
 }) {
+  const gate = await activeTenantActionGate()
+  if (!gate.ok) return gate.result
   const supabase = await createClient()
 
   const { error } = await supabase
@@ -81,6 +86,8 @@ export async function updatePaymentMethod({
   nuevoMetodo: 'efectivo' | 'tarjeta'
   employeeId: string
 }) {
+  const gate = await activeTenantActionGate()
+  if (!gate.ok) return gate.result
   const supabase = await createClient()
   const { error } = await supabase.rpc('editar_metodo_pago', {
     p_payment_id: paymentId,

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { activeTenantActionGate } from '@/lib/billing/server'
 import { revalidatePath } from 'next/cache'
 
 // Define the cart item type
@@ -107,6 +108,8 @@ async function insertOrderItems(
 }
 
 export async function createOrder(tipo: string, table_id: string | null, items: CartItem[], employeeId: string, nombreCliente?: string) {
+  const gate = await activeTenantActionGate()
+  if (!gate.ok) return gate.result
   const supabase = await createClient()
 
   // Validate and deduct inventory atomically BEFORE creating any order
@@ -178,6 +181,8 @@ export async function createOrder(tipo: string, table_id: string | null, items: 
 }
 
 export async function sendToKitchen(orderId: string) {
+  const gate = await activeTenantActionGate()
+  if (!gate.ok) return gate.result
   const supabase = await createClient()
 
   const { error } = await supabase
@@ -221,6 +226,8 @@ async function autoCancelEmptyOrder(supabase: any, orderId: string) {
 }
 
 export async function cancelOrderItem(itemId: string, motivo: string, employeeId: string) {
+  const gate = await activeTenantActionGate()
+  if (!gate.ok) return gate.result
   const supabase = await createClient()
 
   const { data: item } = await supabase
@@ -259,6 +266,8 @@ export async function cancelOrderItem(itemId: string, motivo: string, employeeId
 }
 
 export async function addItemsToOrder(orderId: string, items: CartItem[], employeeId: string) {
+  const gate = await activeTenantActionGate()
+  if (!gate.ok) return gate.result
   const supabase = await createClient()
 
   // Validate and deduct inventory atomically BEFORE adding items
@@ -274,6 +283,8 @@ export async function addItemsToOrder(orderId: string, items: CartItem[], employ
 }
 
 export async function deleteOrderItemUnsent(itemId: string) {
+  const gate = await activeTenantActionGate()
+  if (!gate.ok) return gate.result
   const supabase = await createClient()
 
   const { data: item } = await supabase

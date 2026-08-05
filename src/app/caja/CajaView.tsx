@@ -34,10 +34,12 @@ interface CajaViewProps {
   employeeId: string
   employeeName: string
   employeeRol: string
+  businessName?: string
+  brandLogoUrl?: string
   categoriesList?: { id: string; nombre: string; orden: number }[]
 }
 
-export default function CajaView({ initialOrders, products, extras, ingredients, tables, employeeId, employeeName, employeeRol, categoriesList }: CajaViewProps) {
+export default function CajaView({ initialOrders, products, extras, ingredients, tables, employeeId, employeeName, employeeRol, businessName, brandLogoUrl, categoriesList }: CajaViewProps) {
   const [activeTab, setActiveTab] = useState<'cobro' | 'tomar_pedido' | 'egresos' | 'corte'>('cobro')
   const [tomarPedidoSubTab, setTomarPedidoSubTab] = useState<'nuevo' | 'activos' | 'historial'>('nuevo')
   const [targetOrderIdForAppend, setTargetOrderIdForAppend] = useState<string | null>(null)
@@ -64,19 +66,18 @@ export default function CajaView({ initialOrders, products, extras, ingredients,
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     
-    const [ordersData, historialRes, settingsData] = await Promise.all([
+    const [ordersData, historialRes] = await Promise.all([
       supabase
         .from('orders')
-        .select('*, tables(numero), order_items(*, product:products(nombre), extra:product_extras!extra_id(nombre), order_item_extras(nombre_extra, precio_adicional), creador:employees!order_items_creado_por_fkey(nombre, rol))')
+        .select('*, tables(numero), order_items(*, product:products(nombre), extra:product_extras!extra_id(nombre), order_item_extras(extra_id, nombre_extra, precio_adicional), creador:employees!order_items_creado_por_fkey(nombre, rol))')
         .eq('estado', 'abierto')
         .order('creado_en', { ascending: true }),
       supabase
         .from('orders')
-        .select('*, tables(numero), order_items(*, product:products(nombre), extra:product_extras!extra_id(nombre), order_item_extras(nombre_extra, precio_adicional), creador:employees!order_items_creado_por_fkey(nombre, rol)), payments(id, metodo, monto_cobrado, anulado, creado_en)')
+        .select('*, tables(numero), order_items(*, product:products(nombre), extra:product_extras!extra_id(nombre), order_item_extras(extra_id, nombre_extra, precio_adicional), creador:employees!order_items_creado_por_fkey(nombre, rol)), payments(id, metodo, monto_cobrado, anulado, creado_en)')
         .eq('estado', 'cerrado')
         .gte('creado_en', today.toISOString())
         .order('creado_en', { ascending: false }),
-      supabase.from('settings').select('*').eq('id', 1).single()
     ])
 
     if (ordersData.error) {
@@ -132,15 +133,47 @@ export default function CajaView({ initialOrders, products, extras, ingredients,
     if (historialRes.data) {
       setHistorialHoy(historialRes.data)
     }
-    
-    if (settingsData.data) { setSettings(settingsData.data) }
   }, [supabase, pushToast])
+
+  const loadPrinterSettings = useCallback(async () => {
+    const [settingsRes, employeeRes] = await Promise.all([
+      supabase.from('settings').select('*').eq('id', 1).single(),
+      supabase.from('employees').select('tenant_id').eq('id', employeeId).single(),
+    ])
+
+    if (!settingsRes.data) return
+
+    let resolvedSettings = {
+      ...settingsRes.data,
+      negocio_nombre: businessName || settingsRes.data.negocio_nombre,
+      ticket_logo_url: brandLogoUrl || settingsRes.data.ticket_logo_url,
+    }
+
+    if (employeeRes.data?.tenant_id) {
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('nombre_negocio, logo_marca_url, ticket_logo_url')
+        .eq('id', employeeRes.data.tenant_id)
+        .single()
+
+      if (tenant) {
+        resolvedSettings = {
+          ...resolvedSettings,
+          negocio_nombre: tenant.nombre_negocio ?? resolvedSettings.negocio_nombre,
+          ticket_logo_url: tenant.ticket_logo_url ?? tenant.logo_marca_url ?? null,
+        }
+      }
+    }
+
+    setSettings(resolvedSettings)
+  }, [brandLogoUrl, businessName, employeeId, supabase])
 
   const debouncedFetchOrders = useDebouncedCallback(fetchOrders, 250)
 
   useEffect(() => {
     document.addEventListener('click', unlockAudio, { once: true })
     fetchOrders()
+    loadPrinterSettings()
 
     const channel = supabase
       .channel('caja-realtime')
@@ -149,7 +182,7 @@ export default function CajaView({ initialOrders, products, extras, ingredients,
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [debouncedFetchOrders, fetchOrders, supabase])
+  }, [debouncedFetchOrders, fetchOrders, loadPrinterSettings, supabase])
 
   // ── Checkout state ────────────────────────────────────────────────────────
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)

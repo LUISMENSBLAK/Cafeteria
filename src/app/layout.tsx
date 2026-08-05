@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Montserrat } from "next/font/google";
 import { headers } from "next/headers";
 import { TrialBanner } from "@/components/TrialBanner";
+import { getContrastingTextColor } from "@/lib/themes";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -32,14 +33,19 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false, // Evita zoom accidental al tocar botones rápido
-  viewportFit: "cover", // Permite usar todo el espacio de pantalla (Safe Area)
-  themeColor: "#7A5A32", // Color Bronce para la barra de estado
-};
+export async function generateViewport(): Promise<Viewport> {
+  const headersList = await headers();
+  const isPublicExperience = headersList.get('x-public-experience') === 'true';
+
+  return {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: isPublicExperience ? 5 : 1,
+    userScalable: isPublicExperience,
+    viewportFit: "cover",
+    themeColor: isPublicExperience ? "#1C1917" : "#7A5A32",
+  };
+}
 
 export default async function RootLayout({
   children,
@@ -51,6 +57,11 @@ export default async function RootLayout({
   const themeSecundario = headersList.get('x-theme-secundario') ?? '#7A5A32';
   const themeTerciario = headersList.get('x-theme-terciario') ?? '#8C8880';
   const themeTexto     = headersList.get('x-theme-texto')     ?? '#111111';
+  const textoSobrePrimario = getContrastingTextColor(themePrimario);
+  // Las superficies del acento secundario son elementos de marca. Mantener un
+  // primer plano blanco evita que el cálculo automático las vuelva negras.
+  const textoSobreSecundario = '#FFFFFF';
+  const textoSobreTerciario = getContrastingTextColor(themeTerciario);
   const trialStatus    = headersList.get('x-trial-status')    ?? '';
   const trialDaysLeft  = headersList.get('x-trial-days-left') ?? '';
   const tenantSlug     = headersList.get('x-tenant-slug')     ?? '';
@@ -62,6 +73,9 @@ export default async function RootLayout({
     --color-bronce: ${themeSecundario};
     --color-gris: ${themeTerciario};
     --color-negro: ${themeTexto};
+    --color-en-crema: ${textoSobrePrimario};
+    --color-en-bronce: ${textoSobreSecundario};
+    --color-en-gris: ${textoSobreTerciario};
   }`;
 
   return (

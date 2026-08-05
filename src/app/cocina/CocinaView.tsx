@@ -32,7 +32,7 @@ export default function CocinaView({ initialOrders }: { initialOrders: any[] }) 
     // Fetch all open orders that have at least one item sent to kitchen
     const { data } = await supabase
       .from('orders')
-      .select('*, tables(numero), order_items(*, product:products(nombre), extra:product_extras!extra_id(nombre), order_item_extras(nombre_extra, precio_adicional), creador:employees!order_items_creado_por_fkey(nombre, rol))')
+      .select('*, tables(numero), order_items(*, product:products(nombre), extra:product_extras!extra_id(nombre), order_item_extras(extra_id, nombre_extra, precio_adicional), creador:employees!order_items_creado_por_fkey(nombre, rol))')
       .eq('estado', 'abierto')
       .order('creado_en', { ascending: true })
 

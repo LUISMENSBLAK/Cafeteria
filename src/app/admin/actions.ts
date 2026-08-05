@@ -1,24 +1,23 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { activeTenantActionGate } from '@/lib/billing/server'
 import { revalidatePath } from 'next/cache'
 
 // Note: To create an employee with login, we must create an auth.users record.
 // This requires the Service Role Key.
 export async function createEmployee(nombre: string, pin: string, rol: string, currentUserId?: string) {
+  const gate = await activeTenantActionGate({ roles: ['admin'] })
+  if (!gate.ok) return gate.result
+
   const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
   const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  let tenantId = null;
-  if (currentUserId) {
-    const { data: creator } = await supabaseAdmin.from('employees').select('tenant_id').eq('id', currentUserId).single();
-    if (creator?.tenant_id) {
-      tenantId = creator.tenant_id;
-    }
-  }
+  const tenantId = gate.access.employee.tenant_id;
+  void currentUserId
 
   // Validate if PIN already exists in employees to prevent collisions
   // We should also scope this validation to the tenant_id if tenantId exists
@@ -68,6 +67,9 @@ export async function createEmployee(nombre: string, pin: string, rol: string, c
 }
 
 export async function updateEmployee(id: string, nombre: string, pin: string, rol: string, activo: boolean) {
+  const gate = await activeTenantActionGate({ roles: ['admin'] })
+  if (!gate.ok) return gate.result
+
   const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
   const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,8 +77,16 @@ export async function updateEmployee(id: string, nombre: string, pin: string, ro
   )
 
   // Obtener el tenant_id actual del empleado
-  const { data: targetEmp } = await supabaseAdmin.from('employees').select('tenant_id').eq('id', id).single();
+  let targetQuery = supabaseAdmin.from('employees').select('tenant_id').eq('id', id)
+  if (gate.access.employee.tenant_id) {
+    targetQuery = targetQuery.eq('tenant_id', gate.access.employee.tenant_id)
+  }
+  const { data: targetEmp } = await targetQuery.single();
   const tenantId = targetEmp?.tenant_id;
+
+  if (gate.access.employee.tenant_id && tenantId !== gate.access.employee.tenant_id) {
+    return { error: 'Empleado no encontrado' }
+  }
 
   // Validar que el PIN no esté en uso por otro empleado (excluyendo al que se está editando)
   let existingQuery = supabaseAdmin
@@ -94,9 +104,11 @@ export async function updateEmployee(id: string, nombre: string, pin: string, ro
   if (existing) return { error: 'El PIN ya está en uso por otro empleado' }
 
   // Update employees table
-  const { error: empError } = await supabaseAdmin.from('employees').update({
-    nombre, pin, rol, activo
-  }).eq('id', id)
+  let updateQuery = supabaseAdmin.from('employees').update({ nombre, pin, rol, activo }).eq('id', id)
+  if (gate.access.employee.tenant_id) {
+    updateQuery = updateQuery.eq('tenant_id', gate.access.employee.tenant_id)
+  }
+  const { error: empError } = await updateQuery
 
   if (empError) return { error: empError.message }
 
@@ -109,6 +121,9 @@ export async function updateEmployee(id: string, nombre: string, pin: string, ro
 }
 
 export async function deleteEmployee(id: string, currentUserId: string) {
+  const gate = await activeTenantActionGate({ roles: ['admin'] })
+  if (!gate.ok) return gate.result
+
   const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
   const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -116,16 +131,25 @@ export async function deleteEmployee(id: string, currentUserId: string) {
   )
 
   // 1. No permitir que un admin se borre a sí mismo
-  if (id === currentUserId) {
+  if (id === gate.access.userId || id === currentUserId) {
     return { error: 'No puedes eliminar tu propia cuenta mientras tienes sesión activa' }
   }
 
   // 2. No dejar el sistema sin ningún admin activo
-  const { data: target } = await supabaseAdmin.from('employees').select('rol, activo').eq('id', id).single()
+  let targetQuery = supabaseAdmin.from('employees').select('rol, activo, tenant_id').eq('id', id)
+  if (gate.access.employee.tenant_id) {
+    targetQuery = targetQuery.eq('tenant_id', gate.access.employee.tenant_id)
+  }
+  const { data: target } = await targetQuery.single()
+  if (!target) return { error: 'Empleado no encontrado' }
   if (target?.rol === 'admin') {
-    const { count } = await supabaseAdmin.from('employees')
+    let adminsQuery = supabaseAdmin.from('employees')
       .select('*', { count: 'exact', head: true })
       .eq('rol', 'admin').eq('activo', true).neq('id', id)
+    if (gate.access.employee.tenant_id) {
+      adminsQuery = adminsQuery.eq('tenant_id', gate.access.employee.tenant_id)
+    }
+    const { count } = await adminsQuery
     if (!count || count === 0) {
       return { error: 'No puedes eliminar al único administrador activo' }
     }
@@ -142,7 +166,11 @@ export async function deleteEmployee(id: string, currentUserId: string) {
   }
 
   // 4. Sin historial: eliminar de verdad (tabla + usuario de Auth)
-  const { error: empError } = await supabaseAdmin.from('employees').delete().eq('id', id)
+  let deleteQuery = supabaseAdmin.from('employees').delete().eq('id', id)
+  if (gate.access.employee.tenant_id) {
+    deleteQuery = deleteQuery.eq('tenant_id', gate.access.employee.tenant_id)
+  }
+  const { error: empError } = await deleteQuery
   if (empError) return { error: empError.message }
 
   await supabaseAdmin.auth.admin.deleteUser(id)

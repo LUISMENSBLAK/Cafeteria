@@ -1,9 +1,20 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { requireActiveTenantAccess, TenantAccessError } from '@/lib/billing/server'
 import { redirect } from 'next/navigation'
 
-export async function loginWithPin(pin: string) {
+async function resolvePostLoginPath(role: string) {
+  try {
+    await requireActiveTenantAccess()
+    return `/${role}`
+  } catch (error) {
+    if (error instanceof TenantAccessError) return error.redirectTo
+    throw error
+  }
+}
+
+export async function loginWithPin(pin: string, tenantSlug?: string) {
   const supabase = await createClient()
 
   // We need the Service Role Key to:
@@ -23,12 +34,25 @@ export async function loginWithPin(pin: string) {
     serviceKey
   )
 
-  // 1. Find the employee by PIN
-  const { data: employee } = await supabaseAdmin
+  let tenantId: string | undefined
+  if (tenantSlug) {
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('id')
+      .eq('slug', tenantSlug)
+      .single()
+
+    if (!tenant) return { error: 'No se encontró el negocio solicitado.' }
+    tenantId = tenant.id
+  }
+
+  // 1. Find the employee by PIN, scoped to the branded tenant when available.
+  let employeeQuery = supabaseAdmin
     .from('employees')
     .select('id, rol, activo')
     .eq('pin', pin)
-    .single()
+  if (tenantId) employeeQuery = employeeQuery.eq('tenant_id', tenantId)
+  const { data: employee } = await employeeQuery.single()
 
   if (!employee || !employee.activo) {
     return { error: 'PIN inválido o usuario inactivo' }
@@ -47,7 +71,7 @@ export async function loginWithPin(pin: string) {
   const { error: firstError } = await supabase.auth.signInWithPassword({ email, password: internalPassword })
 
   if (!firstError) {
-    redirect(`/${employee.rol}`)
+    redirect(await resolvePostLoginPath(employee.rol))
   }
 
   // 4. Auto-heal: sync the auth.users record (create or update password)
@@ -76,7 +100,7 @@ export async function loginWithPin(pin: string) {
   const { error: retryError } = await supabase.auth.signInWithPassword({ email, password: internalPassword })
   if (retryError) return { error: retryError.message }
 
-  redirect(`/${employee.rol}`)
+  redirect(await resolvePostLoginPath(employee.rol))
 }
 
 export async function loginWithEmail(formData: FormData) {
@@ -102,7 +126,7 @@ export async function loginWithEmail(formData: FormData) {
     .single()
 
   if (employee) {
-    redirect(`/${employee.rol}`)
+    redirect(await resolvePostLoginPath(employee.rol))
   } else {
     redirect('/')
   }

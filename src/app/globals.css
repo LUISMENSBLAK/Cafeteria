@@ -6,11 +6,72 @@
     --color-bronce: #7A5A32;
     --color-gris: #8C8880;
     --color-negro: #111111;
+    --color-en-crema: #111111;
+    --color-en-bronce: #FFFFFF;
+    --color-en-gris: #111111;
   }
 
   .safe-bottom {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
+}
+
+/*
+ * El color de texto elegido por cada negocio es parte de su identidad visual,
+ * pero no siempre tiene contraste suficiente dentro de superficies blancas.
+ * El POS usa estos valores funcionales para formularios, tablas y tarjetas sin
+ * alterar los colores de marca (crema/bronce) del tenant.
+ */
+.pos-app {
+  --color-negro: #111827;
+  --color-gris: #5b6472;
+  color: #111827;
+}
+
+/* Solo se neutralizan utilidades de texto; bordes y fondos conservan el tema. */
+.pos-app [class~="text-[var(--color-negro)]"] {
+  color: #111827;
+}
+
+.pos-app [class~="text-[var(--color-gris)]"] {
+  color: #5b6472;
+}
+
+.pos-app :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="color"]), select, textarea) {
+  color: #111827;
+  -webkit-text-fill-color: #111827;
+}
+
+.pos-app :where(input, textarea)::placeholder {
+  color: #64748b;
+  -webkit-text-fill-color: #64748b;
+  opacity: 1;
+}
+
+.pos-app :where(select, option) {
+  color-scheme: light;
+}
+
+.pos-app option {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+.pos-app :where(input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]), select, textarea):disabled {
+  color: #475569;
+  -webkit-text-fill-color: #475569;
+  background-color: #f1f5f9;
+  opacity: 1;
+}
+
+.pos-app input[type="file"] {
+  color: #475569;
+  -webkit-text-fill-color: #475569;
+}
+
+.pos-app input[type="file"]::file-selector-button {
+  color: #111827;
+  -webkit-text-fill-color: #111827;
 }
 
 html {
