@@ -19,25 +19,25 @@ interface QZTray {
     getDefault(): Promise<string>
   }
   configs: {
-    create(printer: string, options?: Record<string, any>): QZConfig
+    create(printer: string, options?: Record<string, unknown>): QZConfig
   }
-  print(config: QZConfig, data: QZPrintData[]): Promise<void>
+  print(config: QZConfig, data: Array<string | QZPrintData>): Promise<void>
   security: {
-    setCertificatePromise(fn: (resolve: (cert: string) => void, reject: (err: any) => void) => void): void
+    setCertificatePromise(fn: (resolve: (cert: string) => void, reject: (err: unknown) => void) => void): void
     setSignatureAlgorithm(algorithm: string): void
-    setSignaturePromise(fn: (toSign: string) => (resolve: (sig: string) => void, reject: (err: any) => void) => void): void
+    setSignaturePromise(fn: (toSign: string) => (resolve: (sig: string) => void, reject: (err: unknown) => void) => void): void
   }
 }
 
 interface QZConfig {
   // opaque config object returned by qz.configs.create()
-  [key: string]: any
+  [key: string]: unknown
 }
 
 interface QZPrintData {
   type: 'raw' | 'pixel' | 'html' | 'image' | 'pdf'
-  format?: 'plain' | 'base64' | 'hex' | 'file' | 'xml'
+  format?: 'plain' | 'base64' | 'hex' | 'file' | 'xml' | 'image'
   flavor?: 'plain' | 'base64'
   data: string | string[]
-  options?: Record<string, any>
+  options?: Record<string, unknown>
 }

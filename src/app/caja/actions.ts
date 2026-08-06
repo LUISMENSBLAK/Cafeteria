@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { activeTenantActionGate } from '@/lib/billing/server'
 import { revalidatePath } from 'next/cache'
 
 export async function processPayment({
@@ -12,7 +11,8 @@ export async function processPayment({
   montoRecibido,
   montoCobrado,
   cambio,
-  employeeId
+  employeeId,
+  idempotencyKey,
 }: {
   orderId: string
   tableId: string | null
@@ -22,10 +22,27 @@ export async function processPayment({
   montoCobrado: number
   cambio: number
   employeeId: string
+  idempotencyKey?: string
 }) {
-  const gate = await activeTenantActionGate()
-  if (!gate.ok) return gate.result
   const supabase = await createClient()
+
+  // ── Idempotency guard ─────────────────────────────────────────────────────
+  // processPayment inserts a new payment row — the most dangerous duplication
+  // scenario (charging a customer twice). The key ensures that even if the
+  // network retries the same request, we return success without double-charging.
+  if (idempotencyKey) {
+    const { error: idemError } = await supabase
+      .from('idempotency_keys')
+      .insert({ key: idempotencyKey })
+
+    if (idemError) {
+      if (idemError.code === '23505') {
+        // Duplicate request — already processed, return success without re-charging
+        return { success: true }
+      }
+      return { error: idemError.message }
+    }
+  }
 
   const { error: payError } = await supabase.rpc('procesar_pago', {
     p_order_id: orderId,
@@ -55,8 +72,6 @@ export async function addExpense({
   metodo: 'efectivo' | 'tarjeta'
   employeeId: string
 }) {
-  const gate = await activeTenantActionGate()
-  if (!gate.ok) return gate.result
   const supabase = await createClient()
 
   const { error } = await supabase
@@ -86,8 +101,6 @@ export async function updatePaymentMethod({
   nuevoMetodo: 'efectivo' | 'tarjeta'
   employeeId: string
 }) {
-  const gate = await activeTenantActionGate()
-  if (!gate.ok) return gate.result
   const supabase = await createClient()
   const { error } = await supabase.rpc('editar_metodo_pago', {
     p_payment_id: paymentId,

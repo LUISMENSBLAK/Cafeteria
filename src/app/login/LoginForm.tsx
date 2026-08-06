@@ -50,7 +50,7 @@ export function LoginForm({ businessName, logoUrl, tenantSlug }: LoginFormProps)
   }
 
   return (
-    <div className="min-h-screen flex flex-col p-4 bg-[var(--color-crema)]">
+    <div className="pos-app min-h-screen flex flex-col p-4 bg-[var(--color-crema)]">
       <div className="w-full max-w-md m-auto bg-white rounded-xl overflow-hidden shadow-[0_12px_32px_rgba(58,42,22,0.18),0_2px_8px_rgba(58,42,22,0.10)]">
         <div className="flex items-center justify-center gap-3 border-b border-white/10 bg-stone-900 px-4 py-5 text-left text-white">
           <span className="relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-white p-1 shadow-lg shadow-black/20">

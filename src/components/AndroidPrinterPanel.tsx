@@ -106,7 +106,7 @@ export function AndroidPrinterPanel() {
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         <p className="font-bold">APK Android no detectada</p>
         <p className="mt-1 text-xs">
-          Esta configuración funciona únicamente al abrir el punto de venta desde la aplicación “Abaroa POS”, no desde Chrome.
+          Esta configuración funciona únicamente al abrir el punto de venta desde la aplicación “Innova Coffee POS”, no desde Chrome.
         </p>
       </div>
     )

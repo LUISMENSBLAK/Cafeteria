@@ -18,7 +18,7 @@ export function TrialBanner({ daysLeft, slug }: TrialBannerProps) {
       className={`fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 text-sm font-medium shadow-lg transition-colors ${
         urgente
           ? 'bg-red-600 text-white'
-          : 'bg-[var(--color-bronce)] text-[var(--color-crema)]'
+          : 'bg-[var(--color-bronce)] text-[var(--color-en-bronce)]'
       }`}
       style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
     >
@@ -32,7 +32,7 @@ export function TrialBanner({ daysLeft, slug }: TrialBannerProps) {
         className={`ml-4 rounded px-3 py-1 text-xs font-bold uppercase tracking-wider transition-opacity hover:opacity-80 ${
           urgente
             ? 'bg-white text-red-600'
-            : 'bg-[var(--color-crema)] text-[var(--color-bronce)]'
+            : 'bg-[var(--color-crema)] text-[var(--color-en-crema)]'
         }`}
       >
         Actualizar a Pro

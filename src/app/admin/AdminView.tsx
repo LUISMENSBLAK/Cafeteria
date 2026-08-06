@@ -14,13 +14,16 @@ import { updatePaymentMethod } from '@/app/caja/actions'
 import { detectarImpresoras, buildTicketHtml } from '@/utils/printTicket'
 import { AndroidPrinterPanel } from '@/components/AndroidPrinterPanel'
 import { AndroidBluetoothPrinterPanel } from '@/components/AndroidBluetoothPrinterPanel'
+import { detectThemeKey, TEMAS_DISPONIBLES, type TemaKey } from '@/lib/themes'
+import { buildProductAssetPath, extractProductAssetPath } from '@/lib/storagePaths'
 import { 
   LayoutDashboard, Coffee, Users, Table2, ArrowRightLeft,
   Plus, Edit, Trash2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, Download, RefreshCw, X, Loader2, MoreHorizontal,
-  Circle, RectangleHorizontal, RotateCcw, Square
+  Circle, RectangleHorizontal, RotateCcw, Square, Palette
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 
 const BarChart = dynamic(() => import('recharts').then(mod => mod.BarChart), { ssr: false })
 const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false })
@@ -68,6 +71,12 @@ const LOGO_CROP_OPTIONS = [
   },
 ]
 
+const THEME_DESCRIPTIONS: Record<TemaKey, string> = {
+  cafe: 'Cálido y clásico, con crema y tonos café.',
+  blanco: 'Claro y neutral, pensado para máxima limpieza visual.',
+  oscuro: 'Fondo profundo con acentos dorados y alto contraste.',
+}
+
 const formatOrderType = (t: string) => {
   if (t === 'mesa') return 'En Mesa'
   if (t === 'para_llevar') return 'Para Llevar'
@@ -76,6 +85,7 @@ const formatOrderType = (t: string) => {
 }
 
 export default function AdminView({ employeeId }: { employeeId: string }) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState('dashboard')
   const supabase = useRef(createClient()).current
   const [currentUser, setCurrentUser] = useState<string | null>(null)
@@ -118,6 +128,8 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
   const [detectingPrinters, setDetectingPrinters] = useState(false)
   const [printerDetectError, setPrinterDetectError] = useState<string | null>(null)
   const [printerMode, setPrinterMode] = useState('red')
+  const [selectedTheme, setSelectedTheme] = useState<TemaKey | null>(null)
+  const [savingSettings, setSavingSettings] = useState(false)
 
   // Ticket preview state
   const [ticketPreview, setTicketPreview] = useState({
@@ -263,13 +275,26 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
   const MOVEMENTS_PER_PAGE = 10
 
   const loadData = async () => {
+    setLoadError(null)
     const { data: { user } } = await supabase.auth.getUser()
     if (user) setCurrentUser(user.id)
 
+    const { data: currentEmpRow, error: currentEmpError } = user
+      ? await supabase.from('employees').select('tenant_id').eq('id', user.id).maybeSingle()
+      : { data: null, error: null }
+    if (currentEmpError) {
+      console.error('[Dashboard] Error resolviendo tenant actual:', currentEmpError)
+      setLoadError(currentEmpError.message)
+    }
+    const resolvedTenantId = currentEmpRow?.tenant_id ?? null
+    setCurrentTenantId(resolvedTenantId)
+
+    const settingsQuery = resolvedTenantId
+      ? supabase.from('tenant_settings').select('*').eq('tenant_id', resolvedTenantId).maybeSingle()
+      : supabase.from('settings').select('*').eq('id', 1).maybeSingle()
+
     const startStr = startDate.toISOString()
     const endStr = endDate.toISOString()
-
-    setLoadError(null)
 
     let movsQuery = supabase.from('movements')
       .select('*, created_by:employees(nombre)')
@@ -284,7 +309,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
       supabase.from('tables').select('*').order('numero'),
       supabase.from('employees').select('*').order('creado_en'),
       movsQuery,
-      supabase.from('settings').select('*').eq('id', 1).single(),
+      settingsQuery,
       supabase.from('categories').select('*').order('orden'),
       supabase.from('notas_diarias').select('*').eq('fecha', format(startDate, 'yyyy-MM-dd')).maybeSingle()
     ])
@@ -292,6 +317,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
     if (tRes.error) { console.error('[Dashboard] Error cargando tables:', tRes.error); setLoadError(tRes.error.message); }
     if (eRes.error) { console.error('[Dashboard] Error cargando employees:', eRes.error); setLoadError(eRes.error.message); }
     if (mRes.error) { console.error('[Dashboard] Error cargando movements:', mRes.error); setLoadError(mRes.error.message); }
+    if (sRes.error) { console.error('[Dashboard] Error cargando settings:', sRes.error); setLoadError(sRes.error.message); }
 
     if (pRes.data) setProducts(pRes.data)
     if (tRes.data) setTables(tRes.data)
@@ -300,11 +326,9 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
     if (sRes.data) {
       // Detectar si este empleado pertenece a un tenant para fusionar sus datos de marca
       let mergedSettings = { ...sRes.data }
-      const { data: currentEmpRow } = await supabase.from('employees').select('tenant_id').eq('id', user?.id ?? '').single()
-      if (currentEmpRow?.tenant_id) {
-        const { data: tenantRow } = await supabase.from('tenants').select('nombre_negocio, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url, ticket_logo_url').eq('id', currentEmpRow.tenant_id).single()
+      if (resolvedTenantId) {
+        const { data: tenantRow } = await supabase.from('tenants').select('nombre_negocio, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url, ticket_logo_url').eq('id', resolvedTenantId).single()
         if (tenantRow) {
-          setCurrentTenantId(currentEmpRow.tenant_id)
           setBrandLogoUrl(tenantRow.logo_marca_url ?? '')
           mergedSettings = {
             ...mergedSettings,
@@ -319,10 +343,10 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
           }
         }
       } else {
-        setCurrentTenantId(null)
         setBrandLogoUrl(mergedSettings.logo_marca_url ?? '')
       }
       setSettings(mergedSettings)
+      setSelectedTheme(detectThemeKey(mergedSettings))
       setPrinterMode(mergedSettings.impresora_modo || 'red')
       setTicketPreview({
         tamano: mergedSettings.ticket_tamano_fuente || 'normal',
@@ -905,7 +929,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
 
     if (removeCurrentPhoto && !(file && file.size > 0)) {
       if (editingProduct?.foto_url) {
-        const oldPath = editingProduct.foto_url.split('/').pop()
+        const oldPath = extractProductAssetPath(editingProduct.foto_url)
         if (oldPath) await supabase.storage.from('productos').remove([oldPath])
       }
       foto_url = null
@@ -921,7 +945,11 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
           fileType: 'image/webp'
         })
         
-        const fileName = `prod_${Date.now()}.webp`
+        const fileName = buildProductAssetPath(
+          currentTenantId,
+          'products',
+          `prod_${Date.now()}_${crypto.randomUUID()}.webp`,
+        )
         const { data: uploadData, error: upError } = await supabase.storage.from('productos').upload(fileName, compressed)
         
         if (upError) throw upError
@@ -930,7 +958,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
         foto_url = publicUrl
 
         if (editingProduct?.foto_url) {
-          const oldPath = editingProduct.foto_url.split('/').pop()
+          const oldPath = extractProductAssetPath(editingProduct.foto_url)
           if (oldPath) await supabase.storage.from('productos').remove([oldPath])
         }
       } catch (err) {
@@ -988,7 +1016,7 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
         
         // 1. Borrar la foto de Storage si existe
         if (p.foto_url) {
-          const oldPath = p.foto_url.split('/').pop()
+          const oldPath = extractProductAssetPath(p.foto_url)
           if (oldPath) await supabase.storage.from('productos').remove([oldPath])
         }
         
@@ -1176,7 +1204,11 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
         useWebWorker: true,
         fileType: 'image/webp'
       })
-      const fileName = `logo_ticket_${Date.now()}.webp`
+      const fileName = buildProductAssetPath(
+        currentTenantId,
+        'logos',
+        `ticket_${Date.now()}_${crypto.randomUUID()}.webp`,
+      )
       const { error: upError } = await supabase.storage.from('productos').upload(fileName, compressed)
       if (upError) throw upError
       const { data: { publicUrl } } = supabase.storage.from('productos').getPublicUrl(fileName)
@@ -1214,7 +1246,13 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (savingSettings) return
+    setSavingSettings(true)
     const formData = new FormData(e.target as HTMLFormElement)
+    const requestedThemeKey = formData.get('theme_key') as TemaKey | null
+    const requestedTheme = requestedThemeKey && requestedThemeKey in TEMAS_DISPONIBLES
+      ? TEMAS_DISPONIBLES[requestedThemeKey]
+      : null
     const sData = {
       impresora_activa: formData.get('impresora_activa') === 'true',
       impresora_modo: formData.get('impresora_modo'),
@@ -1233,43 +1271,72 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
       meta_diaria: parseFloat(formData.get('meta_diaria') as string) || 0,
       meta_semanal: parseFloat(formData.get('meta_semanal') as string) || 0,
       meta_mensual: parseFloat(formData.get('meta_mensual') as string) || 0,
-      // Este formulario administra operación, impresión y ticket. Los colores
-      // no tienen controles aquí, por lo que deben conservarse tal como están.
-      theme_color_primario: settings?.theme_color_primario ?? null,
-      theme_color_secundario: settings?.theme_color_secundario ?? null,
-      theme_color_terciario: settings?.theme_color_terciario ?? null,
-      theme_color_texto: settings?.theme_color_texto ?? null,
+      theme_color_primario: requestedTheme?.theme_color_primario ?? settings?.theme_color_primario ?? null,
+      theme_color_secundario: requestedTheme?.theme_color_secundario ?? settings?.theme_color_secundario ?? null,
+      theme_color_terciario: requestedTheme?.theme_color_terciario ?? settings?.theme_color_terciario ?? null,
+      theme_color_texto: requestedTheme?.theme_color_texto ?? settings?.theme_color_texto ?? null,
       logo_marca_url: settings?.logo_marca_url ?? null
     }
 
-    let saveError;
-    if (currentUser) {
-      const { data: emp } = await supabase.from('employees').select('tenant_id').eq('id', currentUser).single()
-      if (emp?.tenant_id) {
-        // Tenant
-        const tenantData = {
-          nombre_negocio: sData.negocio_nombre,
-          // El tema se define durante el registro y no debe alterarse al
-          // guardar opciones de impresora o personalización del ticket.
-          logo_marca_url: sData.logo_marca_url
+    try {
+      let saveError;
+      if (currentUser) {
+        const { data: emp } = await supabase.from('employees').select('tenant_id').eq('id', currentUser).single()
+        if (emp?.tenant_id) {
+          // Marca y operación se guardan en sus tablas tenant-aware respectivas.
+          const tenantData = {
+            nombre_negocio: sData.negocio_nombre,
+            theme_color_primario: sData.theme_color_primario,
+            theme_color_secundario: sData.theme_color_secundario,
+            theme_color_terciario: sData.theme_color_terciario,
+            theme_color_texto: sData.theme_color_texto,
+            logo_marca_url: sData.logo_marca_url
+          }
+          const tenantSettingsData = {
+            impresora_activa: sData.impresora_activa,
+            impresora_modo: sData.impresora_modo,
+            impresora_papel_mm: sData.impresora_papel_mm,
+            impresora_ip: sData.impresora_ip,
+            nombre_impresora_windows: sData.nombre_impresora_windows,
+            ticket_tamano_fuente: sData.ticket_tamano_fuente,
+            ticket_mensaje_despedida: sData.ticket_mensaje_despedida,
+            ticket_mostrar_atendido_por: sData.ticket_mostrar_atendido_por,
+            ticket_mostrar_logo: sData.ticket_mostrar_logo,
+            negocio_nombre: sData.negocio_nombre,
+            negocio_direccion: sData.negocio_direccion,
+            negocio_telefono: sData.negocio_telefono,
+            negocio_rfc: sData.negocio_rfc,
+            ticket_linea_extra: sData.ticket_linea_extra,
+            meta_diaria: sData.meta_diaria,
+            meta_semanal: sData.meta_semanal,
+            meta_mensual: sData.meta_mensual,
+          }
+          const [tenantResult, settingsResult] = await Promise.all([
+            supabase.from('tenants').update(tenantData).eq('id', emp.tenant_id),
+            supabase.from('tenant_settings').update(tenantSettingsData).eq('tenant_id', emp.tenant_id),
+          ])
+          saveError = tenantResult.error ?? settingsResult.error
+        } else {
+          // Root settings
+          const { error: sError } = await supabase.from('settings').update(sData).eq('id', 1)
+          saveError = sError
         }
-        const { error: tError } = await supabase.from('tenants').update(tenantData).eq('id', emp.tenant_id)
-        saveError = tError
       } else {
-        // Root settings
         const { error: sError } = await supabase.from('settings').update(sData).eq('id', 1)
         saveError = sError
       }
-    } else {
-      const { error: sError } = await supabase.from('settings').update(sData).eq('id', 1)
-      saveError = sError
-    }
 
-    if (saveError) {
-      alert('Error guardando configuración: ' + saveError.message)
-    } else {
-      alert('Configuración guardada exitosamente')
-      loadData()
+      if (saveError) {
+        alert('Error guardando configuración: ' + saveError.message)
+      } else {
+        setSettings((current: Record<string, unknown> | null) => ({ ...(current ?? {}), ...sData }))
+        setSelectedTheme(requestedThemeKey && requestedTheme ? requestedThemeKey : detectThemeKey(sData))
+        alert('Configuración guardada exitosamente')
+        await loadData()
+        router.refresh()
+      }
+    } finally {
+      setSavingSettings(false)
     }
   }
 
@@ -2575,6 +2642,61 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
           <div className="space-y-6 max-w-2xl">
             <h2 className="font-serif font-bold text-2xl text-[var(--color-bronce)]">Configuración General</h2>
             <form onSubmit={handleSaveSettings} className="bg-white p-6 rounded-xl border border-[var(--color-gris)]/20 shadow-sm space-y-4">
+              <section aria-labelledby="appearance-heading" className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                <div className="mb-4 flex items-start gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-white text-[var(--color-bronce)] shadow-sm ring-1 ring-slate-200">
+                    <Palette size={21} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 id="appearance-heading" className="font-bold text-slate-900">Apariencia del POS</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                      Puedes cambiar el estilo cuando quieras. Se aplicará a las pantallas de todo tu negocio.
+                    </p>
+                  </div>
+                </div>
+
+                <div role="radiogroup" aria-label="Tema visual del punto de venta" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {(Object.entries(TEMAS_DISPONIBLES) as [TemaKey, (typeof TEMAS_DISPONIBLES)[TemaKey]][]).map(([key, theme]) => {
+                    const isSelected = selectedTheme === key
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => setSelectedTheme(key)}
+                        className={`relative min-h-32 rounded-xl border-2 p-3 text-left transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-bronce)] focus-visible:ring-offset-2 ${
+                          isSelected
+                            ? 'border-[var(--color-bronce)] bg-white shadow-md'
+                            : 'border-slate-200 bg-white hover:border-slate-400 hover:shadow-sm'
+                        }`}
+                      >
+                        <span className="mb-3 flex h-10 overflow-hidden rounded-lg border border-black/10" aria-hidden="true">
+                          <span className="flex-1" style={{ backgroundColor: theme.theme_color_primario }} />
+                          <span className="w-10" style={{ backgroundColor: theme.theme_color_secundario }} />
+                          <span className="w-7" style={{ backgroundColor: theme.theme_color_terciario }} />
+                        </span>
+                        <span className="flex items-center justify-between gap-2 text-sm font-extrabold text-slate-900">
+                          {theme.nombre}
+                          {isSelected && (
+                            <span className="grid size-5 place-items-center rounded-full bg-[var(--color-bronce)] text-[var(--color-en-bronce)]" aria-label="Seleccionado">
+                              <CheckCircle2 size={14} aria-hidden="true" />
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-1 block text-xs leading-snug text-slate-600">{THEME_DESCRIPTIONS[key]}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <input type="hidden" name="theme_key" value={selectedTheme ?? ''} />
+                {selectedTheme === null && (
+                  <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200">
+                    Tu combinación actual es personalizada. Se conservará hasta que selecciones un tema nuevo.
+                  </p>
+                )}
+              </section>
+
               <h3 className="font-bold text-[var(--color-negro)] border-b pb-2">Impresión de Tickets</h3>
               <div>
                 <label className="block text-xs uppercase font-bold text-[var(--color-gris)] mb-2">Impresora Activa</label>
@@ -2881,7 +3003,13 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
                 </div>
               </div>
 
-              <Button type="submit" variant="primary" className="w-full mt-4">Guardar Configuración</Button>
+              <Button type="submit" variant="primary" className="w-full mt-4" disabled={savingSettings}>
+                {savingSettings ? (
+                  <><Loader2 size={18} className="mr-2 animate-spin" aria-hidden="true" /> Guardando...</>
+                ) : (
+                  'Guardar Configuración'
+                )}
+              </Button>
             </form>
 
             <div className="bg-white p-6 rounded-xl border border-[var(--color-gris)]/20 shadow-sm mt-8 space-y-4">
@@ -3062,7 +3190,18 @@ export default function AdminView({ employeeId }: { employeeId: string }) {
           </div>
           <div>
             <label className="block text-xs font-bold text-[var(--color-gris)] mb-1">Foto (Auto optimizada a WebP)</label>
-            <input type="file" name="foto" accept="image/*" className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[var(--color-crema)] file:text-[var(--color-bronce)] hover:file:bg-[var(--color-bronce)]/10" />
+            <input
+              type="file"
+              name="foto"
+              accept="image/*"
+              className={`text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold ${
+                selectedTheme === 'oscuro'
+                  ? 'file:bg-slate-100 file:text-slate-900 hover:file:bg-slate-200'
+                  : selectedTheme === 'blanco'
+                    ? 'file:bg-slate-100 file:text-slate-900 hover:file:bg-slate-200'
+                    : 'file:bg-[var(--color-crema)] file:text-[var(--color-bronce)] hover:file:bg-[var(--color-bronce)]/10'
+              }`}
+            />
             {editingProduct?.foto_url && !removeCurrentPhoto && (
               <div className="mt-2 flex items-center gap-4">
                 <div className="h-20 w-20 relative rounded shadow-sm border border-[var(--color-gris)]/20 overflow-hidden">

@@ -136,10 +136,15 @@ export default function CajaView({ initialOrders, products, extras, ingredients,
   }, [supabase, pushToast])
 
   const loadPrinterSettings = useCallback(async () => {
-    const [settingsRes, employeeRes] = await Promise.all([
-      supabase.from('settings').select('*').eq('id', 1).single(),
-      supabase.from('employees').select('tenant_id').eq('id', employeeId).single(),
-    ])
+    const employeeRes = await supabase
+      .from('employees')
+      .select('tenant_id')
+      .eq('id', employeeId)
+      .single()
+    const tenantId = employeeRes.data?.tenant_id ?? null
+    const settingsRes = tenantId
+      ? await supabase.from('tenant_settings').select('*').eq('tenant_id', tenantId).maybeSingle()
+      : await supabase.from('settings').select('*').eq('id', 1).maybeSingle()
 
     if (!settingsRes.data) return
 
@@ -149,11 +154,11 @@ export default function CajaView({ initialOrders, products, extras, ingredients,
       ticket_logo_url: brandLogoUrl || settingsRes.data.ticket_logo_url,
     }
 
-    if (employeeRes.data?.tenant_id) {
+    if (tenantId) {
       const { data: tenant } = await supabase
         .from('tenants')
         .select('nombre_negocio, logo_marca_url, ticket_logo_url')
-        .eq('id', employeeRes.data.tenant_id)
+        .eq('id', tenantId)
         .single()
 
       if (tenant) {
@@ -556,6 +561,7 @@ export default function CajaView({ initialOrders, products, extras, ingredients,
         montoCobrado: amountToPay,
         cambio,
         employeeId: employeeId,
+        idempotencyKey: crypto.randomUUID(),
       })
 
       if (res?.error) {
@@ -579,7 +585,7 @@ export default function CajaView({ initialOrders, products, extras, ingredients,
   const toggleCajaApertura = async () => {
     const newVal = !(settings?.caja_apertura_automatica ?? true)
     setSettings((prev: any) => ({ ...prev, caja_apertura_automatica: newVal }))
-    const { error } = await supabase.from('settings').update({ caja_apertura_automatica: newVal }).eq('id', 1) // En Cafeterias, la tabla settings podría necesitar scope por tenant_id si aplica, pero aquí asumimos ID=1 por ahora o usar el tenant actual
+    const { error } = await supabase.rpc('set_caja_apertura_automatica', { p_activa: newVal })
     if (error) {
       pushToast('Error al actualizar ajuste de cajón', 'info')
       setSettings((prev: any) => ({ ...prev, caja_apertura_automatica: !newVal }))
@@ -1480,7 +1486,7 @@ export default function CajaView({ initialOrders, products, extras, ingredients,
                 disabled={isSubmitting}
                 onClick={async () => {
                   setIsSubmitting(true)
-                  const res = await sendToKitchen(selectedOrder.id)
+                  const res = await sendToKitchen(selectedOrder.id, crypto.randomUUID())
                   setIsSubmitting(false)
                   if (res?.error) pushToast(res.error, 'info')
                   else { pushToast('¡Orden enviada a cocina! 🍳', 'success'); fetchOrders() }

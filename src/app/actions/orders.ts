@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { activeTenantActionGate } from '@/lib/billing/server'
 import { revalidatePath } from 'next/cache'
 
 // Define the cart item type
@@ -27,6 +26,30 @@ export interface CartItem {
   ingredientes_seleccionados?: string[]
   cargo_ingredientes_extra?: number
   notas?: string
+}
+
+/**
+ * Inserta una llave de idempotencia en la base de datos.
+ * Si la llave ya existe (violación 23505), significa que esta petición
+ * exacta ya fue procesada antes (reintento de red) → devuelve { duplicate: true }.
+ * Si hay otro error, lo propaga.
+ */
+async function checkIdempotency(
+  supabase: any,
+  key: string
+): Promise<{ duplicate?: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('idempotency_keys')
+    .insert({ key })
+
+  if (error) {
+    if (error.code === '23505') {
+      // Violación de llave única = reintento de red, ya procesado
+      return { duplicate: true }
+    }
+    return { error: error.message }
+  }
+  return {}
 }
 
 /**
@@ -79,6 +102,7 @@ async function insertOrderItems(
     .insert(orderItemsData)
     .select('id')
 
+
   if (itemsError) return { error: itemsError.message }
 
   // Insert order_item_extras (paid extras) for items that have them
@@ -107,10 +131,25 @@ async function insertOrderItems(
   return { success: true }
 }
 
-export async function createOrder(tipo: string, table_id: string | null, items: CartItem[], employeeId: string, nombreCliente?: string) {
-  const gate = await activeTenantActionGate()
-  if (!gate.ok) return gate.result
+export async function createOrder(
+  tipo: string,
+  table_id: string | null,
+  items: CartItem[],
+  employeeId: string,
+  nombreCliente?: string,
+  idempotencyKey?: string
+) {
   const supabase = await createClient()
+
+  // ── Idempotency guard ─────────────────────────────────────────────────────
+  // Prevents duplicate inserts caused by automatic network retries.
+  // If the same key arrives twice (same request, different network attempt),
+  // we return success immediately without touching the DB again.
+  if (idempotencyKey) {
+    const idem = await checkIdempotency(supabase, idempotencyKey)
+    if (idem.duplicate) return { success: true }
+    if (idem.error) return { error: idem.error }
+  }
 
   // Validate and deduct inventory atomically BEFORE creating any order
   const inventoryResult = await descontarInventario(supabase, items)
@@ -180,10 +219,19 @@ export async function createOrder(tipo: string, table_id: string | null, items: 
   return { success: true, orderId: targetOrderId }
 }
 
-export async function sendToKitchen(orderId: string) {
-  const gate = await activeTenantActionGate()
-  if (!gate.ok) return gate.result
+export async function sendToKitchen(orderId: string, idempotencyKey?: string) {
   const supabase = await createClient()
+
+  // ── Idempotency guard ─────────────────────────────────────────────────────
+  // sendToKitchen is a bulk UPDATE (not insert), so retrying it is naturally
+  // idempotent (setting enviado_a_cocina=true on already-true rows is a no-op).
+  // We still add the guard to prevent the double-flash of the kitchen screen
+  // that could happen if two concurrent requests land.
+  if (idempotencyKey) {
+    const idem = await checkIdempotency(supabase, idempotencyKey)
+    if (idem.duplicate) return { success: true }
+    if (idem.error) return { error: idem.error }
+  }
 
   const { error } = await supabase
     .from('order_items')
@@ -225,10 +273,19 @@ async function autoCancelEmptyOrder(supabase: any, orderId: string) {
   }
 }
 
-export async function cancelOrderItem(itemId: string, motivo: string, employeeId: string) {
-  const gate = await activeTenantActionGate()
-  if (!gate.ok) return gate.result
+export async function cancelOrderItem(itemId: string, motivo: string, employeeId: string, idempotencyKey?: string) {
   const supabase = await createClient()
+
+  // ── Idempotency guard ─────────────────────────────────────────────────────
+  // cancelOrderItem marks a row as cancelled. Retrying on an already-cancelled
+  // row is harmless for the DB, but the idempotency key prevents a second
+  // concurrent request from racing in and applying the cancellation twice
+  // (e.g. double stock return).
+  if (idempotencyKey) {
+    const idem = await checkIdempotency(supabase, idempotencyKey)
+    if (idem.duplicate) return { success: true }
+    if (idem.error) return { error: idem.error }
+  }
 
   const { data: item } = await supabase
     .from('order_items')
@@ -265,10 +322,15 @@ export async function cancelOrderItem(itemId: string, motivo: string, employeeId
   return { success: true }
 }
 
-export async function addItemsToOrder(orderId: string, items: CartItem[], employeeId: string) {
-  const gate = await activeTenantActionGate()
-  if (!gate.ok) return gate.result
+export async function addItemsToOrder(orderId: string, items: CartItem[], employeeId: string, idempotencyKey?: string) {
   const supabase = await createClient()
+
+  // ── Idempotency guard ─────────────────────────────────────────────────────
+  if (idempotencyKey) {
+    const idem = await checkIdempotency(supabase, idempotencyKey)
+    if (idem.duplicate) return { success: true }
+    if (idem.error) return { error: idem.error }
+  }
 
   // Validate and deduct inventory atomically BEFORE adding items
   const inventoryResult = await descontarInventario(supabase, items)
@@ -283,8 +345,6 @@ export async function addItemsToOrder(orderId: string, items: CartItem[], employ
 }
 
 export async function deleteOrderItemUnsent(itemId: string) {
-  const gate = await activeTenantActionGate()
-  if (!gate.ok) return gate.result
   const supabase = await createClient()
 
   const { data: item } = await supabase

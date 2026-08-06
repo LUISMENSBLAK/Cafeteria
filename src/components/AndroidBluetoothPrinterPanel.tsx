@@ -89,7 +89,7 @@ export function AndroidBluetoothPrinterPanel() {
       type: granted ? 'success' : 'error',
       message: granted
         ? 'Permiso Bluetooth disponible. Ya puedes imprimir.'
-        : 'Falta el permiso BLUETOOTH_CONNECT. Otórgalo en Configuración → Aplicaciones → Abaroa POS → Permisos.',
+        : 'Falta el permiso BLUETOOTH_CONNECT. Otórgalo en Configuración → Aplicaciones → Innova Coffee POS → Permisos.',
     })
   }
 
@@ -113,7 +113,7 @@ export function AndroidBluetoothPrinterPanel() {
         <p className="font-bold">APK Android no detectada</p>
         <p className="mt-1 text-xs">
           Esta configuración funciona únicamente al abrir el punto de venta desde la aplicación
-          "Abaroa POS", no desde Chrome u otro navegador.
+          "Innova Coffee POS", no desde Chrome u otro navegador.
         </p>
       </div>
     )

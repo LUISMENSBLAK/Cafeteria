@@ -32,9 +32,10 @@ export interface PrinterSettings extends EscPosTicketSettings {
 
 const ANDROID_PRINT_TIMEOUT_MS = 25_000
 const ANDROID_LOGO_WIDTH_DOTS = 320
+const ANDROID_LOGO_HEIGHT_DOTS = 220
 
 /** Lazy-load qz-tray only in the browser (it requires window/document). */
-async function loadQZ(): Promise<any> {
+async function loadQZ(): Promise<QZTray> {
   if (typeof window === 'undefined') throw new Error('QZ Tray requiere un navegador')
   const qz = (await import('qz-tray')).default
   return qz
@@ -89,7 +90,11 @@ async function convertToBlackAndWhite(url: string): Promise<string> {
 }
 
 /** Convert a browser image into a GS v 0 ESC/POS raster command. */
-async function imageToEscPosRaster(url: string, maxWidthDots = ANDROID_LOGO_WIDTH_DOTS): Promise<Uint8Array> {
+async function imageToEscPosRaster(
+  url: string,
+  maxWidthDots = ANDROID_LOGO_WIDTH_DOTS,
+  maxHeightDots = ANDROID_LOGO_HEIGHT_DOTS,
+): Promise<Uint8Array> {
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const candidate = new Image()
     candidate.crossOrigin = 'anonymous'
@@ -100,8 +105,9 @@ async function imageToEscPosRaster(url: string, maxWidthDots = ANDROID_LOGO_WIDT
 
   const sourceWidth = Math.max(1, image.naturalWidth)
   const sourceHeight = Math.max(1, image.naturalHeight)
-  const scaledWidth = Math.max(8, Math.min(maxWidthDots, sourceWidth))
-  const scaledHeight = Math.max(1, Math.round(sourceHeight * (scaledWidth / sourceWidth)))
+  const scale = Math.min(1, maxWidthDots / sourceWidth, maxHeightDots / sourceHeight)
+  const scaledWidth = Math.max(8, Math.round(sourceWidth * scale))
+  const scaledHeight = Math.max(1, Math.round(sourceHeight * scale))
   const bytesPerRow = Math.ceil(scaledWidth / 8)
   const canvasWidth = bytesPerRow * 8
 
@@ -195,7 +201,7 @@ async function sendAndroidPrintJob(bytes: Uint8Array, timeoutMs = ANDROID_PRINT_
       success: false,
       channel: 'android_usb',
       errorCode: 'ANDROID_BRIDGE_UNAVAILABLE',
-      message: 'Esta opción requiere abrir Abaroa POS desde la APK Android.',
+      message: 'Esta opción requiere abrir Innova Coffee POS desde la APK Android.',
     }
   }
 
@@ -257,8 +263,8 @@ async function sendAndroidPrintJob(bytes: Uint8Array, timeoutMs = ANDROID_PRINT_
 
 async function buildAndroidTicket(orderData: PrintOrderData, settings: PrinterSettings): Promise<Uint8Array> {
   let logoRaster: Uint8Array | null = null
-  if (settings.ticket_mostrar_logo ?? true) {
-    const logoUrl = settings.ticket_logo_url || '/ABAROA_letras_negras_sin_fondo.png'
+  if ((settings.ticket_mostrar_logo ?? true) && settings.ticket_logo_url) {
+    const logoUrl = settings.ticket_logo_url
     try {
       logoRaster = await imageToEscPosRaster(absoluteAssetUrl(logoUrl), Math.min(ANDROID_LOGO_WIDTH_DOTS, ESC_POS_DOTS_58MM))
     } catch (error) {
@@ -324,7 +330,7 @@ async function sendAndroidBluetoothPrintJob(bytes: Uint8Array, timeoutMs = ANDRO
       success: false,
       channel: 'android_bluetooth',
       errorCode: 'ANDROID_BT_BRIDGE_UNAVAILABLE',
-      message: 'Esta opción requiere abrir Abaroa POS desde la APK Android.',
+      message: 'Esta opción requiere abrir Innova Coffee POS desde la APK Android.',
     }
   }
 
@@ -417,8 +423,8 @@ async function printWithQZ(orderData: PrintOrderData, settings: PrinterSettings)
     if (!qz.websocket.isActive()) await qz.websocket.connect()
     const config = qz.configs.create(printerName)
 
-    if (settings.ticket_mostrar_logo ?? true) {
-      const logoUrl = absoluteAssetUrl(settings.ticket_logo_url || '/ABAROA_letras_negras_sin_fondo.png')
+    if ((settings.ticket_mostrar_logo ?? true) && settings.ticket_logo_url) {
+      const logoUrl = absoluteAssetUrl(settings.ticket_logo_url)
       try {
         const monochromeLogo = await convertToBlackAndWhite(logoUrl)
         await qz.print(config, [
@@ -455,7 +461,7 @@ async function printWithNetwork(orderData: PrintOrderData, settings: PrinterSett
   const timeoutId = window.setTimeout(() => controller.abort(), 3_500)
   try {
     let xml = '<text lang="es" align="center" smooth="true" font="font_a"/>'
-    xml += `<text>${escapeXml(settings.negocio_nombre ?? 'ABAROA CAFETERÍA')}\n\nTicket: #${escapeXml(orderData.orderId.slice(0, 8).toUpperCase())}\nFecha: ${escapeXml(orderData.fecha)}\n</text>`
+    xml += `<text>${escapeXml(settings.negocio_nombre ?? 'MI CAFETERÍA')}\n\nTicket: #${escapeXml(orderData.orderId.slice(0, 8).toUpperCase())}\nFecha: ${escapeXml(orderData.fecha)}\n</text>`
     xml += '<text>--------------------------------\n</text><text align="left">'
     for (const item of orderData.items) {
       xml += `<text>${item.cantidad}x ${escapeXml(item.nombre)} $${(item.precio_unitario * item.cantidad).toFixed(2)}\n</text>`
@@ -495,14 +501,14 @@ export function buildTicketHtml(orderData: PrintOrderData, settings: PrinterSett
   const showAttendant = settings.ticket_mostrar_atendido_por ?? true
   const showLogo = settings.ticket_mostrar_logo ?? true
   const farewell = settings.ticket_mensaje_despedida ?? '¡Gracias por su compra!'
-  const logoUrl = settings.ticket_logo_url || '/ABAROA_letras_negras_sin_fondo.png'
+  const logoUrl = settings.ticket_logo_url
   const widthMm = settings.impresora_papel_mm === '58' ? '58mm' : '80mm'
 
   return `
     <div style="font-family: Arial, sans-serif; color:#111; font-size:${fontSize}; width:${widthMm}; padding:3mm; box-sizing:border-box; background:white;">
       <div style="text-align:center; margin-bottom:10px;">
-        ${showLogo ? `<img src="${escapeHtml(logoUrl)}" alt="Logo" style="width:46mm; max-height:28mm; object-fit:contain; display:block; margin:0 auto 5px;" />` : ''}
-        <div style="font-size:13px; font-weight:bold;">${escapeHtml(settings.negocio_nombre ?? 'Abaroa Cafetería')}</div>
+        ${showLogo && logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="Logo" style="width:46mm; max-height:28mm; object-fit:contain; display:block; margin:0 auto 5px;" />` : ''}
+        <div style="font-size:13px; font-weight:bold;">${escapeHtml(settings.negocio_nombre ?? 'Mi Cafetería')}</div>
         ${settings.negocio_direccion ? `<div style="font-size:10px;">${escapeHtml(settings.negocio_direccion)}</div>` : ''}
         ${settings.negocio_telefono ? `<div style="font-size:10px;">Tel: ${escapeHtml(settings.negocio_telefono)}</div>` : ''}
         ${settings.negocio_rfc ? `<div style="font-size:10px;">RFC: ${escapeHtml(settings.negocio_rfc)}</div>` : ''}
@@ -604,7 +610,7 @@ export async function imprimirTicket(orderData: PrintOrderData, settings: Printe
       success: false,
       channel: 'android_usb',
       errorCode: 'ANDROID_MODE_NOT_SELECTED',
-      message: 'Selecciona “USB Android — APK Abaroa POS” en Configuración.',
+      message: 'Selecciona “USB Android — APK Innova Coffee POS” en Configuración.',
     }
   }
 

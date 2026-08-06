@@ -16,6 +16,7 @@ export interface EscPosOrderData {
   metodoPago: string
   fecha: string
   tipoPedido?: string
+  tipoTicket?: 'cuenta' | 'venta'
   atendidoPor?: string
   montoRecibido?: number
   cambio?: number
@@ -187,7 +188,7 @@ export function buildEscPosBytes(
   const fontSize = settings.ticket_tamano_fuente ?? 'normal'
   const itemFont = fontSize === 'pequena' ? FONT_SMALL : fontSize === 'grande' ? FONT_LARGE : FONT_NORMAL
   const separator = '-'.repeat(lineWidth)
-  const businessName = safeText(settings.negocio_nombre ?? 'Abaroa Cafetería')
+  const businessName = safeText(settings.negocio_nombre ?? 'Mi Cafetería')
   const farewell = safeText(settings.ticket_mensaje_despedida ?? '¡Gracias por su compra! Vuelva pronto.')
   const showAttendant = settings.ticket_mostrar_atendido_por ?? true
   const showLogo = settings.ticket_mostrar_logo ?? true
@@ -278,7 +279,7 @@ export function buildDiagnosticEscPosBytes(printerLabel = 'Impresora USB Android
     atendidoPor: printerLabel,
   }
   return buildEscPosBytes(data, {
-    negocio_nombre: 'ABAROA POS',
+    negocio_nombre: 'INNOVA COFFEE POS',
     negocio_direccion: 'Prueba: á é í ó ú Á É Í Ó Ú',
     negocio_telefono: 'ñ Ñ ü Ü ¿ ¡',
     ticket_mensaje_despedida: 'Si este texto y el corte salen bien, la conexión ESC/POS funciona.',

@@ -311,6 +311,10 @@ export function POSMenu({
 
     if (isSubmittingRef.current) return
     isSubmittingRef.current = true
+    // Generate ONE key per genuine click — if the network retries the same
+    // request, it will carry this same key and be deduped on the server.
+    // A new genuine click always generates a new key.
+    const idempotencyKey = crypto.randomUUID()
     setIsSubmitting(true)
     
     // Expand cart items: instead of { cantidad: 3 }, send 3 separate objects with cantidad: 1
@@ -341,10 +345,10 @@ export function POSMenu({
       let res;
       if (activeOrderToAppend) {
         console.log('[DEBUG Agregar Más] Calling addItemsToOrder for order:', activeOrderToAppend.id)
-        res = await addItemsToOrder(activeOrderToAppend.id, itemsData, employeeId)
+        res = await addItemsToOrder(activeOrderToAppend.id, itemsData, employeeId, idempotencyKey)
       } else {
         console.log('[DEBUG Agregar Más] Calling createOrder')
-        res = await createOrder(orderType, orderType === 'mesa' ? selectedTable : null, itemsData, employeeId, orderType === 'mesa' ? '' : nombreCliente)
+        res = await createOrder(orderType, orderType === 'mesa' ? selectedTable : null, itemsData, employeeId, orderType === 'mesa' ? '' : nombreCliente, idempotencyKey)
       }
 
       if (res?.error) {
@@ -427,7 +431,7 @@ export function POSMenu({
                   onClick={() => !agotado && handleProductClick(p)}
                 >
                   {flashId === p.id && (
-                    <span className="absolute -top-2 -right-2 bg-[var(--color-bronce)] text-white font-bold text-xs px-2 py-0.5 rounded-full z-20 animate-bounce">
+                    <span className="absolute -top-2 -right-2 bg-[var(--color-bronce)] text-[var(--color-en-bronce)] font-bold text-xs px-2 py-0.5 rounded-full z-20 animate-bounce">
                       +1
                     </span>
                   )}

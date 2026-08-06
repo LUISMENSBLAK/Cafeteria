@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:commercial": "node --test --experimental-strip-types tests/billing-access.test.mjs tests/email-templates.test.mjs tests/pricing.test.mjs",
+    "test:isolation": "node --test --experimental-strip-types tests/storage-paths.test.mjs tests/tenant-isolation-migration.test.mjs"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

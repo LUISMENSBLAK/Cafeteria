@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { sendWelcomeEmail } from '@/lib/email/sendWelcomeEmail'
 import { TEMAS_DISPONIBLES, TemaKey } from '@/lib/themes'
+import { buildProductAssetPath } from '@/lib/storagePaths'
 import crypto from 'crypto'
 import sharp from 'sharp'
 
@@ -169,7 +170,7 @@ export async function createTrialTenant(formData: FormData) {
           .resize(1600, 1000, { fit: 'inside', withoutEnlargement: true })
           .webp({ quality: 88 })
           .toBuffer()
-        const fileName = `tenant-logos/${createdTenantId}.webp`
+        const fileName = buildProductAssetPath(createdTenantId, 'logos', 'brand.webp')
         const { error: logoUploadError } = await supabaseAdmin.storage
           .from('productos')
           .upload(fileName, optimizedLogo, { upsert: true, contentType: 'image/webp' })

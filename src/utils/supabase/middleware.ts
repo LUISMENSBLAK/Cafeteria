@@ -1,46 +1,119 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Rutas que son completamente públicas (sin requerir autenticación)
-const PUBLIC_PATHS = [
-  '/',
-  '/login',
-  '/prueba-gratis',
-]
+import {
+  canTenantAccessPOS,
+  getCommercialRedirectPath,
+  type CommercialTenant,
+} from '@/lib/billing/access'
 
-function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) return true
-  // Las rutas /demo/[slug]/login y /demo/[slug]/vencido son públicas
-  if (pathname.match(/^\/demo\/[^/]+\/(login|vencido)/)) return true
-  return false
+const PUBLIC_PATHS = ['/', '/login', '/prueba-gratis']
+
+function isPublicExperience(pathname: string) {
+  return (
+    pathname === '/prueba-gratis' ||
+    /^\/demo\/[^/]+\/(login|vencido|regularizar|pago(?:\/|$))/.test(pathname)
+  )
+}
+
+function isPublicPath(pathname: string) {
+  if (PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
+    return true
+  }
+
+  if (isPublicExperience(pathname)) return true
+
+  return (
+    pathname === '/api/stripe/webhook' ||
+    pathname === '/api/stripe/status' ||
+    pathname === '/api/stripe/checkout' ||
+    pathname === '/api/stripe/portal' ||
+    pathname === '/api/commercial/trial-reminders'
+  )
+}
+
+function isCommercialRecoveryPath(pathname: string) {
+  return /^\/demo\/[^/]+\/(vencido|regularizar|pago(?:\/|$))/.test(pathname)
+}
+
+function withRequestHeaders(
+  request: NextRequest,
+  response: NextResponse,
+  headers: Headers,
+) {
+  const cookies = response.cookies.getAll()
+  const nextResponse = NextResponse.next({ request: { headers } })
+  cookies.forEach((cookie) => nextResponse.cookies.set(cookie.name, cookie.value, cookie))
+  return nextResponse
+}
+
+function setPublicExperienceHeader(request: NextRequest, response: NextResponse) {
+  if (!isPublicExperience(request.nextUrl.pathname)) return response
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-public-experience', 'true')
+  return withRequestHeaders(request, response, requestHeaders)
+}
+
+async function injectPublicTenantBrand(
+  request: NextRequest,
+  response: NextResponse,
+  slug: string,
+) {
+  const supabaseAdmin = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { cookies: { getAll: () => [], setAll: () => undefined } },
+  )
+
+  const { data: tenant } = await supabaseAdmin
+    .from('tenants')
+    .select(
+      'nombre_negocio, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url',
+    )
+    .eq('slug', slug)
+    .single()
+
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-public-experience', 'true')
+
+  if (tenant) {
+    requestHeaders.set('x-business-name', encodeURIComponent(tenant.nombre_negocio))
+    requestHeaders.set('x-theme-primario', tenant.theme_color_primario ?? '#F5E6D3')
+    requestHeaders.set('x-theme-secundario', tenant.theme_color_secundario ?? '#7A5A32')
+    requestHeaders.set('x-theme-terciario', tenant.theme_color_terciario ?? '#8C8880')
+    requestHeaders.set('x-theme-texto', tenant.theme_color_texto ?? '#111111')
+    requestHeaders.set('x-logo-url', encodeURIComponent(tenant.logo_marca_url ?? ''))
+    requestHeaders.set('x-tenant-slug', slug)
+  }
+
+  return withRequestHeaders(request, response, requestHeaders)
 }
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
+  const pathname = request.nextUrl.pathname
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
+        getAll: () => request.cookies.getAll(),
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options),
           )
         },
       },
-    }
+    },
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-  const pathname = request.nextUrl.pathname
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  // --- Sin sesión ---
   if (!user) {
     if (!isPublicPath(pathname) && !pathname.startsWith('/_next') && !pathname.includes('.')) {
       const url = request.nextUrl.clone()
@@ -48,47 +121,28 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    const match = pathname.match(/^\/demo\/([^/]+)\/(login|vencido)/)
-    if (match) {
-      const slug = match[1]
-      const supabaseAdmin = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        { cookies: { getAll: () => [], setAll: () => {} } }
-      )
-      
-      const { data: tenant } = await supabaseAdmin
-        .from('tenants')
-        .select('nombre_negocio, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url')
-        .eq('slug', slug)
-        .single()
-        
-      if (tenant) {
-        const requestHeaders = new Headers(request.headers)
-        requestHeaders.set('x-business-name', encodeURIComponent(tenant.nombre_negocio))
-        requestHeaders.set('x-theme-primario', tenant.theme_color_primario ?? '#F5E6D3')
-        requestHeaders.set('x-theme-secundario', tenant.theme_color_secundario ?? '#7A5A32')
-        requestHeaders.set('x-theme-terciario', tenant.theme_color_terciario ?? '#8C8880')
-        requestHeaders.set('x-theme-texto', tenant.theme_color_texto ?? '#111111')
-        requestHeaders.set('x-logo-url', encodeURIComponent(tenant.logo_marca_url ?? ''))
-        
-        supabaseResponse = NextResponse.next({
-          request: { headers: requestHeaders },
-        })
-      }
+    const demoMatch = pathname.match(/^\/demo\/([^/]+)\//)
+    if (demoMatch && isPublicExperience(pathname)) {
+      return injectPublicTenantBrand(request, supabaseResponse, demoMatch[1])
     }
 
-    return supabaseResponse
+    if (pathname === '/login') {
+      // El tenant debe ser explícito en la URL. No usar una cookie compartida:
+      // en dispositivos que prueban varios demos podría mostrar otra marca.
+      const tenantSlug = request.nextUrl.searchParams.get('tenant')
+      if (tenantSlug) return injectPublicTenantBrand(request, supabaseResponse, tenantSlug)
+    }
+
+    return setPublicExperienceHeader(request, supabaseResponse)
   }
 
-  // --- Con sesión: cargar empleado ---
   const { data: employee } = await supabase
     .from('employees')
     .select('id, nombre, rol, activo, tenant_id')
     .eq('id', user.id)
     .single()
 
-  if (!employee || !employee.activo) {
+  if (!employee?.activo) {
     await supabase.auth.signOut()
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -97,10 +151,6 @@ export async function updateSession(request: NextRequest) {
 
   const role = employee.rol
   const tenantId: string | null = employee.tenant_id ?? null
-
-  // --- Theming & datos de negocio según la fuente correcta ---
-  // Para tenants demo: leer de la tabla `tenants`
-  // Para instalaciones dedicadas (tenant_id NULL): leer de `settings`
   let businessName = 'POS'
   let themePrimario = '#F5E6D3'
   let themeSecundario = '#7A5A32'
@@ -108,55 +158,53 @@ export async function updateSession(request: NextRequest) {
   let themeTexto = '#111111'
   let logoUrl = ''
   let tenantSlug = ''
-  let trialStatus = '' // 'trial' | 'vencido' | 'activo' | '' (instalación dedicada)
+  let trialStatus = ''
   let trialDaysLeft = ''
 
   if (tenantId) {
-    // Usuario demo: leer de tenants
     const { data: tenant } = await supabase
       .from('tenants')
-      .select('slug, nombre_negocio, estado, trial_termina_en, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url')
+      .select(
+        'id, slug, nombre_negocio, nombre_contacto, email_contacto, creado_en, trial_started_at, trial_termina_en, billing_status, plan_type, current_period_end, cancel_at_period_end, grace_period_ends_at, access_expires_at, suspended_at, estado, plan, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url',
+      )
       .eq('id', tenantId)
       .single()
 
-    if (tenant) {
-      businessName = tenant.nombre_negocio
-      themePrimario = tenant.theme_color_primario ?? themePrimario
-      themeSecundario = tenant.theme_color_secundario ?? themeSecundario
-      themeTerciario = tenant.theme_color_terciario ?? themeTerciario
-      themeTexto = tenant.theme_color_texto ?? themeTexto
-      logoUrl = tenant.logo_marca_url ?? ''
-      tenantSlug = tenant.slug
+    if (!tenant) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
 
-      // Calcular estado del trial (la DB puede tener 'trial' pero la fecha ya pasó)
-      const now = new Date()
-      const trialEnd = new Date(tenant.trial_termina_en)
-      const isExpired = tenant.estado === 'vencido' || (tenant.estado === 'trial' && trialEnd < now)
+    businessName = tenant.nombre_negocio
+    themePrimario = tenant.theme_color_primario ?? themePrimario
+    themeSecundario = tenant.theme_color_secundario ?? themeSecundario
+    themeTerciario = tenant.theme_color_terciario ?? themeTerciario
+    themeTexto = tenant.theme_color_texto ?? themeTexto
+    logoUrl = tenant.logo_marca_url ?? ''
+    tenantSlug = tenant.slug
 
-      if (isExpired) {
-        trialStatus = 'vencido'
-      } else {
-        trialStatus = tenant.estado // 'trial' | 'activo'
-      }
+    const commercialTenant = tenant as unknown as CommercialTenant
+    const decision = canTenantAccessPOS(commercialTenant)
+    trialStatus = decision.effectiveStatus === 'trialing' ? 'trial' : decision.effectiveStatus
 
-      if (trialStatus === 'trial') {
-        const msLeft = trialEnd.getTime() - now.getTime()
-        const days = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)))
-        trialDaysLeft = String(days)
-      }
+    if (decision.effectiveStatus === 'trialing' && tenant.trial_termina_en) {
+      const millisecondsLeft = Date.parse(tenant.trial_termina_en) - Date.now()
+      trialDaysLeft = String(Math.max(0, Math.ceil(millisecondsLeft / 86_400_000)))
+    }
 
-      // Si el trial venció, redirigir a la página de vencimiento (excepto si ya está ahí)
-      if (trialStatus === 'vencido' && !pathname.includes('/vencido')) {
-        const url = request.nextUrl.clone()
-        url.pathname = `/demo/${tenantSlug}/vencido`
-        return NextResponse.redirect(url)
-      }
+    if (!decision.allowed && !isCommercialRecoveryPath(pathname) && !pathname.startsWith('/api/stripe/')) {
+      const url = request.nextUrl.clone()
+      url.pathname = getCommercialRedirectPath(commercialTenant, decision)
+      url.search = ''
+      return NextResponse.redirect(url)
     }
   } else {
-    // Instalación dedicada: leer de settings (id=1)
     const { data: settings } = await supabase
       .from('settings')
-      .select('negocio_nombre, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url')
+      .select(
+        'negocio_nombre, theme_color_primario, theme_color_secundario, theme_color_terciario, theme_color_texto, logo_marca_url',
+      )
       .eq('id', 1)
       .single()
 
@@ -170,15 +218,9 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // --- Redirección por rol ---
   if (pathname === '/' || pathname === '/login') {
     const url = request.nextUrl.clone()
-    // Si es demo y ya tiene sesión, mandar a /demo/[slug]/[rol]
-    if (tenantSlug) {
-      url.pathname = `/demo/${tenantSlug}/${role === 'admin' ? 'admin' : role}`
-    } else {
-      url.pathname = `/${role}`
-    }
+    url.pathname = `/${role === 'admin' ? 'admin' : role}`
     return NextResponse.redirect(url)
   }
 
@@ -203,7 +245,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // --- Inyectar headers en el REQUEST (no en la response) para que Server Components los lean ---
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-employee-id', employee.id)
   requestHeaders.set('x-employee-rol', employee.rol)
@@ -217,19 +258,7 @@ export async function updateSession(request: NextRequest) {
   requestHeaders.set('x-tenant-slug', tenantSlug)
   requestHeaders.set('x-trial-status', trialStatus)
   requestHeaders.set('x-trial-days-left', trialDaysLeft)
+  if (isPublicExperience(pathname)) requestHeaders.set('x-public-experience', 'true')
 
-  // Preservar cookies de Supabase auth
-  const prevCookies = supabaseResponse.cookies.getAll()
-
-  // CRÍTICO: Los headers van en el request, no en el response,
-  // para que los Server Components puedan leerlos con headers() de next/headers
-  supabaseResponse = NextResponse.next({
-    request: { headers: requestHeaders },
-  })
-
-  prevCookies.forEach(cookie => {
-    supabaseResponse.cookies.set(cookie.name, cookie.value, cookie)
-  })
-
-  return supabaseResponse
+  return withRequestHeaders(request, supabaseResponse, requestHeaders)
 }

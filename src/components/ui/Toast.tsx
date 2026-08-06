@@ -15,7 +15,7 @@ export function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
         <div
           key={t.id}
           className={`pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg font-bold text-sm animate-in slide-in-from-right
-            ${t.variant === 'success' ? 'bg-green-600 text-white' : 'bg-[var(--color-bronce)] text-white'}`}
+            ${t.variant === 'success' ? 'bg-green-600 text-white' : 'bg-[var(--color-bronce)] text-[var(--color-en-bronce)]'}`}
         >
           {t.variant === 'success' ? <CheckCircle2 size={18} /> : <Bell size={18} />}
           {t.message}

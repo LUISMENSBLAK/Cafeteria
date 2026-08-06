@@ -339,7 +339,7 @@ export default function MeseroView({
                             disabled={isSubmitting}
                             onClick={async () => {
                               setIsSubmitting(true)
-                              const result = await sendToKitchen(order.id)
+                              const result = await sendToKitchen(order.id, crypto.randomUUID())
                               setIsSubmitting(false)
                               if (result?.error) {
                                 pushToast(result.error, 'info')
