@@ -76,60 +76,38 @@ async function insertOrderItems(
   items: CartItem[],
   employeeId: string
 ) {
+  // Build the JSONB payload for each item, including nested extras_pago.
+  // The RPC inserts order_items and order_item_extras in a single transaction,
+  // eliminating the race-condition window where real-time listeners (Cocina/Caja)
+  // could capture an incomplete snapshot (item without its extras yet).
+  // It also avoids the index-alignment assumption between the inserted rows and
+  // the original array, since each extra is matched to its item inside the SQL loop.
   const orderItemsData = items.map(item => ({
-    order_id: orderId,
     product_id: item.product_id,
     cantidad: item.cantidad,
     precio_unitario: item.precio_unitario,
     nombre_producto: item.nombre_producto,
-    // Legacy extra (kept for backward compatibility)
     extra_id: item.extra_id || null,
     extra_precio: item.extra_precio || null,
-    // New: variante única
     variante_id: item.variante_id || null,
     nombre_variante: item.nombre_variante || null,
     ingredientes_seleccionados: item.ingredientes_seleccionados || null,
     cargo_ingredientes_extra: item.cargo_ingredientes_extra || 0,
     notas: item.notas || null,
-    enviado_a_cocina: false,
-    creado_por: employeeId,
-    pagado: false,
-    cancelado: false
+    // extras_pago goes nested so the RPC can associate them to the right item id
+    extras_pago: item.extras_pago || [],
   }))
 
-  const { data: insertedItems, error: itemsError } = await supabase
-    .from('order_items')
-    .insert(orderItemsData)
-    .select('id')
-
-
-  if (itemsError) return { error: itemsError.message }
-
-  // Insert order_item_extras (paid extras) for items that have them
-  const extrasToInsert: any[] = []
-  insertedItems.forEach((insertedItem: any, idx: number) => {
-    const cartItem = items[idx]
-    if (cartItem.extras_pago && cartItem.extras_pago.length > 0) {
-      cartItem.extras_pago.forEach(ep => {
-        extrasToInsert.push({
-          order_item_id: insertedItem.id,
-          extra_id: ep.extra_id,
-          nombre_extra: ep.nombre_extra,
-          precio_adicional: ep.precio_adicional,
-        })
-      })
-    }
+  const { error } = await supabase.rpc('insertar_items_pedido', {
+    p_order_id: orderId,
+    p_items: orderItemsData,
+    p_employee_id: employeeId,
   })
 
-  if (extrasToInsert.length > 0) {
-    const { error: extrasError } = await supabase
-      .from('order_item_extras')
-      .insert(extrasToInsert)
-    if (extrasError) return { error: extrasError.message }
-  }
-
+  if (error) return { error: error.message }
   return { success: true }
 }
+
 
 export async function createOrder(
   tipo: string,
